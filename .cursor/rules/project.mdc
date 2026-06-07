@@ -1,0 +1,36 @@
+---
+description: プロジェクト全体のコーディングルールとアーキテクチャ
+globs: ["**/*.py", "**/*.ts", "**/*.tsx"]
+alwaysApply: true
+---
+
+# 58 in OMU — Cursorルール
+
+## プロジェクト構成
+- `backend/` — Python 3.12 + FastAPI（Railway）
+- `frontend/` — Next.js 15 App Router + TypeScript（Vercel）
+- `docker-compose.yml` — ローカル開発環境（全サービスDocker）
+
+## Backendルール
+- エンドポイントは `backend/app/routers/` 配下にファイル単位で追加する
+- 追加したルーターは `backend/app/main.py` で `include_router` する
+- DBアクセスは `get_db` を `Depends()` で注入して行う
+- SQLAlchemyモデルは `backend/app/models/` に追加する
+- 型ヒントは必須。`async def` を使う
+- テストは `backend/tests/` に `pytest` + `httpx` で書く
+
+## Frontendルール
+- ページは `frontend/src/app/` 配下にApp Router規約で追加する
+- API呼び出しは必ず `frontend/src/lib/api.ts` に関数として定義する
+- データ取得はServer Component（デフォルト）、インタラクションは `"use client"`
+- `any` 型は使わない
+
+## ローカル開発
+```bash
+docker-compose up --build  # 全サービス起動
+```
+- Backend: http://localhost:8000
+- Frontend: http://localhost:3000
+- Swagger: http://localhost:8000/docs
+
+詳細は `CLAUDE.md` を参照。

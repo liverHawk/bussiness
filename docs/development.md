@@ -195,6 +195,7 @@ git commit -m "feat: アイテム一覧APIを追加"
 
 # PRを作ってmainにマージ
 # → GitHub ActionsでCIが自動実行される
+# → mainへのマージ後、VPSへ自動デプロイ（deploy.yml）
 ```
 
 ### コミットメッセージの規約（推奨）

@@ -7,9 +7,11 @@ alwaysApply: true
 # 58 in OMU — Cursorルール
 
 ## プロジェクト構成
-- `backend/` — Python 3.12 + FastAPI（Railway）
-- `frontend/` — Next.js 15 App Router + TypeScript（Vercel）
-- `docker-compose.yml` — ローカル開発環境（全サービスDocker）
+- `backend/` — Python 3.12 + FastAPI（本番: XServer VPS / Docker）
+- `frontend/` — Next.js 15 App Router + TypeScript（本番: XServer VPS / Docker）
+- `docker-compose.yml` — ローカル開発環境（全サービス Docker）
+- 本番 DB — Supabase（PostgreSQL）
+- CI/CD — GitHub Actions → VPS へ SSH 自動デプロイ
 
 ## Backendルール
 - エンドポイントは `backend/app/routers/` 配下にファイル単位で追加する

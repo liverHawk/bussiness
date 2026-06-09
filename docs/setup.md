@@ -1,5 +1,7 @@
 # ローカル環境構築ガイド
 
+ローカル開発は Docker Compose で行う。本番環境（XServer VPS + Supabase）の構築手順は [deployment.md](deployment.md) を参照。
+
 ## 必要なもの
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) — これだけあればOK

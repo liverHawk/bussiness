@@ -3,25 +3,27 @@
 ## プロジェクト概要
 
 FastAPI（Backend） × Next.js（Frontend） × Supabase（DB）のモノレポ。
-- Backend → Railway にデプロイ
-- Frontend → Vercel にデプロイ
-- DB → Supabase (PostgreSQL)
+
+- Frontend + Backend → **XServer VPS** 上の Docker コンテナ（同一サーバー）
+- DB → **Supabase** (PostgreSQL)
+- CI/CD → **GitHub Actions**（push で VPS へ自動デプロイ）
+- 環境変数 → VPS 上に `.env` を直接配置（Git 管理外）
 
 ## ディレクトリ構成
 
 ```
 /
 ├── backend/app/
-│   ├── main.py       # FastAPIアプリ・CORS・ルーター登録
-│   ├── config.py     # pydantic-settingsで環境変数管理
-│   ├── database.py   # SQLAlchemy非同期エンジン・get_db
+│   ├── main.py       # FastAPI アプリ・CORS・ルーター登録
+│   ├── config.py     # pydantic-settings で環境変数管理
+│   ├── database.py   # SQLAlchemy 非同期エンジン・get_db
 │   ├── routers/      # エンドポイント（ファイル単位で機能分割）
-│   └── models/       # SQLAlchemyモデル
+│   └── models/       # SQLAlchemy モデル
 ├── backend/tests/    # pytest
 ├── frontend/src/
 │   ├── app/          # Next.js App Router（ファイル＝ページ）
-│   └── lib/api.ts    # バックエンドAPIクライアント（ここに集約）
-└── docker-compose.yml
+│   └── lib/api.ts    # バックエンド API クライアント（ここに集約）
+└── docker-compose.yml  # ローカル開発用
 ```
 
 ## ローカル開発
@@ -82,3 +84,11 @@ export async function fetchItems(): Promise<Item[]> {
 
 - Backend: `DATABASE_URL`, `ALLOWED_ORIGINS`
 - Frontend: `NEXT_PUBLIC_API_URL`
+- 本番の `.env` は VPS 上に直接配置（Git にコミットしない）
+
+## デプロイ
+
+- 本番: XServer VPS + Docker（frontend / backend 同一サーバー）
+- DB: Supabase
+- CI/CD: GitHub Actions → SSH → `docker compose up --build -d`
+- 詳細: `docs/deployment.md`

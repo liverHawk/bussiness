@@ -1,7 +1,7 @@
 # API仕様
 
 ベースURL（ローカル）: `http://localhost:8000`  
-ベースURL（本番）: `https://<your-railway-app>.railway.app`
+ベースURL（本番）: `https://your-domain.com/api`（XServer VPS + Nginx）
 
 インタラクティブドキュメント: `{BASE_URL}/docs` (Swagger UI)
 

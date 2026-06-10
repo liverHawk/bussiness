@@ -1,0 +1,19 @@
+# CODEOWNERS
+#
+# このファイルで指定したパスのファイルを変更する PR は、
+# 指定したユーザーのレビュー承認が必須になる。
+#
+# 詳細: https://docs.github.com/ja/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ─────────────────────────────────────────
+# DB設計・スキーマ変更は @mstka のみ承認可能
+# ─────────────────────────────────────────
+
+# SQLAlchemyモデル（テーブル定義）
+/backend/app/models/         @mstka
+
+# DBマイグレーション（Alembic）
+/backend/alembic/            @mstka
+
+# DB接続設定
+/backend/app/database.py     @mstka

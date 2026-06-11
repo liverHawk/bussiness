@@ -132,22 +132,14 @@ CREATE INDEX IF NOT EXISTS idx_store_tags_store    ON store_tags(store);
 
 -- ============================================================
 -- Row Level Security（RLS）
--- Supabase では RLS を有効化しないと全データが公開される
+-- 現在は無効。認証実装後に有効化してポリシーを追加すること。
 -- ============================================================
-ALTER TABLE users       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE stores      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE tags        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE store_tags  ENABLE ROW LEVEL SECURITY;
-ALTER TABLE routes      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE route_points ENABLE ROW LEVEL SECURITY;
-ALTER TABLE merchandise ENABLE ROW LEVEL SECURITY;
-ALTER TABLE coupons     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reviews     ENABLE ROW LEVEL SECURITY;
-
--- 【注意】RLSを有効化するとデフォルトで全アクセスが拒否される。
--- アプリの認証実装後に適切なポリシーを追加すること。
--- 開発中は一時的に全許可ポリシーを使う場合の例:
---
--- CREATE POLICY "allow_all" ON users    FOR ALL USING (true) WITH CHECK (true);
--- CREATE POLICY "allow_all" ON stores   FOR ALL USING (true) WITH CHECK (true);
--- （本番では絶対に使わないこと）
+-- ALTER TABLE users        ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE stores       ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE tags         ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE store_tags   ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE routes       ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE route_points ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE merchandise  ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE coupons      ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE reviews      ENABLE ROW LEVEL SECURITY;

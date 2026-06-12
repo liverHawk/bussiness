@@ -27,6 +27,13 @@ alwaysApply: true
 - データ取得はServer Component（デフォルト）、インタラクションは `"use client"`
 - `any` 型は使わない
 
+## 地図・ルート検索ルール（OpenStreetMap）
+- 詳細仕様は `docs/map.md` を必ず読んでから実装する
+- 地図表示は Leaflet + react-leaflet。タイルは OSM 標準タイル（帰属表示必須）
+- 地図コンポーネントは `"use client"` + `dynamic import { ssr: false }` 必須
+- ジオコーディングは Nominatim、経路計算は OSRM。**フロントから直接呼ばず必ず backend 経由**
+- Google Maps の API・タイルは使わない
+
 ## ローカル開発
 ```bash
 docker-compose up --build  # 全サービス起動

@@ -40,6 +40,7 @@ docker-compose up --build
 | [docs/setup.md](docs/setup.md) | ローカル環境構築・よく使うコマンド |
 | [docs/development.md](docs/development.md) | 機能追加の方法・開発ガイド |
 | [docs/architecture.md](docs/architecture.md) | システム構成・技術選定理由 |
+| [docs/map.md](docs/map.md) | 地図・ルート検索仕様（OpenStreetMap / Leaflet / OSRM） |
 | [docs/api.md](docs/api.md) | API エンドポイント仕様 |
 | [docs/deployment.md](docs/deployment.md) | XServer VPS / Supabase / GitHub Actions デプロイ手順 |
 

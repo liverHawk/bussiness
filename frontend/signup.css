@@ -1,0 +1,104 @@
+/* 全体リセット */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: #f2e9dd;
+    margin: 0;
+    padding: 0;
+}
+
+/* ヘッダー */
+.header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 16px;
+    position: relative;
+}
+
+.title {
+    font-size: 22px;
+    margin: 0;
+}
+
+.user-icon {
+    position: absolute;
+    right: 16px;
+    font-size: 26px;
+}
+
+/* カード */
+.container {
+    max-width: 380px;
+    margin: 24px auto;
+    background: #ffffff;
+    padding: 28px 24px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+    font-size: 18px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* フォーム */
+.register-form label {
+    display: block;
+    margin: 16px 0 6px;
+    font-size: 14px;
+    color: #444;
+}
+
+.register-form input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+.note {
+    font-size: 12px;
+    color: #666;
+    margin: 6px 0 0;
+}
+
+/* ボタン */
+.register-btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 28px;
+    background: #ff8a00;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 17px;
+    cursor: pointer;
+}
+
+.register-btn:hover {
+    background: #e67a00;
+}
+
+/* スマホ最適化 */
+@media (max-width: 480px) {
+    .container {
+        margin: 16px;
+        padding: 24px 20px;
+    }
+
+    .title {
+        font-size: 20px;
+    }
+
+    .section-title {
+        font-size: 16px;
+    }
+}

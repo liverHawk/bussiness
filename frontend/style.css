@@ -22,7 +22,10 @@ body {
   font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
   background: var(--bg-color);
   margin: 0;
-  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  /* 左右は削除 */
+
   color: var(--text-main);
 }
 

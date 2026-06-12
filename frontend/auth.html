@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>認証コード入力</title>
+    <link rel="stylesheet" href="auth.css">
+</head>
+
+<body>
+
+    <header class="header">
+        <h1 class="title">新規会員登録</h1>
+    </header>
+
+    <main class="container">
+
+        <div class="user-icon">👤</div>
+
+        <div class="message-box">
+            認証コードを送信しました。
+        </div>
+
+        <h2 class="section-title">6桁の認証コード</h2>
+
+        <div class="code-inputs">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+        </div>
+
+        <a href="#" class="resend">認証コード再送信</a>
+
+        <a href="#" class="back">戻る</a>
+
+    </main>
+
+    <script>
+        const inputs = document.querySelectorAll('.code-inputs input');
+
+        inputs.forEach((input, index) => {
+            input.addEventListener('input', () => {
+                // 入力されたら次のボックスへ
+                if (input.value && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                // バックスペースで前のボックスへ戻る
+                if (e.key === 'Backspace' && !input.value && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+        });
+    </script>
+
+</body>
+
+</html>

@@ -18,14 +18,14 @@
   <main class="container">
     <h1 class="title">ログイン</h1>
 
-    <form class="login-form">
-      <label>メールアドレスまたはユーザーID</label>
-      <input type="text">
+    <form class="login-form" action="#" method="post">
+      <label for="login-id">メールアドレスまたはユーザーID</label>
+      <input type="text" id="login-id" name="login-id">
 
-      <label>パスワード</label>
-      <input type="password">
+      <label for="password">パスワード</label>
+      <input type="password" id="password" name="password">
 
-      <button type="button" class="login-btn">ログイン</button>
+      <button type="submit" class="login-btn">ログイン</button>
 
       <a href="#" class="forgot">パスワードを忘れた方はこちら</a>
 

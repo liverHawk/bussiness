@@ -1,0 +1,58 @@
+/* リセット */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: #f2e9dd;
+    margin: 0;
+    padding: 0;
+}
+
+/* カード */
+.container {
+    max-width: 360px;
+    margin: 80px auto;
+    background: #ffffff;
+    padding: 40px 24px;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* タイトル */
+.title {
+    font-size: 24px;
+    margin: 0 0 20px;
+}
+
+.check {
+    color: #000;
+    /* 黒色 */
+    font-size: 26px;
+    font-weight: bold;
+}
+
+/* 戻るリンク */
+.back {
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 16px;
+    color: #007aff;
+    text-decoration: none;
+}
+
+/* スマホ最適化 */
+@media (max-width: 480px) {
+    .container {
+        margin: 40px 16px;
+        padding: 32px 20px;
+    }
+
+    .title {
+        font-size: 22px;
+    }
+}

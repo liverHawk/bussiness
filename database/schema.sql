@@ -31,7 +31,10 @@ CREATE TABLE IF NOT EXISTS stores (
     owner        UUID         NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     name         VARCHAR(50)  NOT NULL,
     description  TEXT         NOT NULL,
-    crowrd_level FLOAT        CHECK (crowrd_level >= 0.0 AND crowrd_level <= 1.0)
+    crowrd_level FLOAT        CHECK (crowrd_level >= 0.0 AND crowrd_level <= 1.0),
+    -- 地図表示用の位置情報（docs/map.md 参照）
+    lat          DOUBLE PRECISION CHECK (lat >= -90.0  AND lat <= 90.0),
+    lon          DOUBLE PRECISION CHECK (lon >= -180.0 AND lon <= 180.0)
 );
 
 

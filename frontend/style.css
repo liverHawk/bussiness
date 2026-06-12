@@ -43,7 +43,7 @@ body {
    コンテナ
 ================================ */
 .container {
-  width: 100px;
+  width: 100%;
   max-width: 360px;
   margin: 40px auto;
   background: var(--white);
@@ -165,11 +165,15 @@ body {
 @media (max-width: 480px) {
 
   body {
-    padding: var(--safe-top) 12px var(--safe-bottom);
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .container {
     width: 100%;
+    max-width: 100%;
     margin: 20px auto;
     padding: 20px 12px;
     border-radius: 14px;

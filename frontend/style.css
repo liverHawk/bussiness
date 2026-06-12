@@ -17,7 +17,7 @@ body {
   background: #ffffff;
   padding: 32px 24px;
   border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .title {
@@ -138,6 +138,7 @@ body {
     font-size: 14px;
   }
 }
+
 /* ===== Safe Area 対応（iPhone / Android） ===== */
 :root {
   /* iOS Safari の safe-area-inset を利用 */

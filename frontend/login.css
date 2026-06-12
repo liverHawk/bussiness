@@ -1,3 +1,10 @@
+/* すべての要素を border-box にする（はみ出し防止の基本） */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 /* ================================
    基本設定 & テーマカラー
 ================================ */
@@ -43,7 +50,7 @@ body {
    コンテナ
 ================================ */
 .container {
-  width: 100%;
+  width: auto;
   max-width: 360px;
   margin: 40px auto;
   background: var(--white);
@@ -172,7 +179,7 @@ body {
   }
 
   .container {
-    width: 100%;
+    width: auto;
     max-width: 100%;
     margin: 20px auto;
     padding: 20px 12px;

@@ -1,5 +1,9 @@
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from app.dependencies import get_current_user
+from app.services.coupon_catalog import all_coupons
+from app.services.supabase_auth import SupabaseAuthResult
 
 router = APIRouter(prefix="/coupons", tags=["coupons"])
 
@@ -16,40 +20,19 @@ class MyCouponsResponse(BaseModel):
     myCoupons: list[CouponItem]
 
 
-# ダミーデータ（後でDBから取得するように変更する）
-DUMMY_COUPONS: list[CouponItem] = [
-    CouponItem(
-        couponId="cp_doutor_50",
-        title="ドトールコーヒーショップ\nアイスコーヒー50円引き",
-        qrCodeUrl="https://example.com/qrcodes/doutor_50.png",
-        expiryDate="2026/6/6",
-        isUsed=False,
-    ),
-    CouponItem(
-        couponId="cp_doutor_100",
-        title="ドトールコーヒーショップ\nアイスコーヒー100円引き",
-        qrCodeUrl="https://example.com/qrcodes/doutor_100.png",
-        expiryDate="2026/6/6",
-        isUsed=False,
-    ),
-    CouponItem(
-        couponId="cp_doutor_150",
-        title="ドトールコーヒーショップ\nアイスコーヒー150円引き",
-        qrCodeUrl="https://example.com/qrcodes/doutor_150.png",
-        expiryDate="2026/6/6",
-        isUsed=True,
-    ),
-]
-
-
 @router.get("/my-list", response_model=MyCouponsResponse)
-async def get_my_coupons(authorization: str = Header(...)):
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="認証トークンが不正です")
-
-    token = authorization.removeprefix("Bearer ").strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="認証トークンがありません")
-
-    # TODO: 認証実装後にtokenでユーザーを特定してDBから取得する
-    return MyCouponsResponse(myCoupons=DUMMY_COUPONS)
+async def get_my_coupons(
+    _user: SupabaseAuthResult = Depends(get_current_user),
+) -> MyCouponsResponse:
+    """ユーザーが保有しているクーポン一覧（未使用・使用済み含む）を返す。"""
+    items = [
+        CouponItem(
+            couponId=c.coupon_id,
+            title=c.title,
+            qrCodeUrl=c.qr_code_url,
+            expiryDate=f"{c.expiry_date.year}/{c.expiry_date.month}/{c.expiry_date.day}",
+            isUsed=c.is_used,
+        )
+        for c in all_coupons()
+    ]
+    return MyCouponsResponse(myCoupons=items)

@@ -1,18 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserResponse
 from app.schemas.errors import ErrorBody, ErrorResponse
 from app.services.supabase_auth import (
     SupabaseAuthError,
+    SupabaseAuthResult,
     SupabaseAuthService,
     get_supabase_auth_service,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+class LogoutResponse(BaseModel):
+    success: bool
+    message: str
 
 
 def _user_response(user: User) -> UserResponse:
@@ -65,6 +73,25 @@ async def login(
         accessToken=auth_result.access_token,
         user=_user_response(user),
     )
+
+
+@router.post("/logout", response_model=LogoutResponse)
+async def logout(
+    current_user: SupabaseAuthResult = Depends(get_current_user),
+    auth_service: SupabaseAuthService = Depends(get_supabase_auth_service),
+) -> LogoutResponse:
+    """認証トークンを無効化し、安全にログアウトする。"""
+    try:
+        await auth_service.sign_out(current_user.access_token)
+    except SupabaseAuthError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail=ErrorResponse(
+                error=ErrorBody(code=exc.code, message=exc.message)
+            ).model_dump(),
+        ) from exc
+
+    return LogoutResponse(success=True, message="ログアウトしました")
 
 
 @router.post("/register", response_model=AuthResponse)

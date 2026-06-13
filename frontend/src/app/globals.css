@@ -1,3 +1,23 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+:root {
+  --color-cream: #fffbf7;
+  --color-accent: #d3883f;
+  --color-text: #2f2419;
+}
+
+html {
+  background: var(--color-cream);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--color-cream);
+  color: var(--color-text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}

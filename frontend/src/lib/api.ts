@@ -2,7 +2,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export async function fetchHealth(): Promise<{ status: string }> {
   const res = await fetch(`${API_URL}/health`);
-  console.error(res)
   if (!res.ok) throw new Error("API error");
   return res.json();
 }
@@ -23,6 +22,8 @@ export async function fetchMyCoupons(token: string): Promise<CouponItem[]> {
   if (!res.ok) throw new Error("クーポン一覧の取得に失敗しました");
   const data: { myCoupons: CouponItem[] } = await res.json();
   return data.myCoupons;
+}
+
 // ---- スポット絞り込み検索 (GET /spots/search) ----
 
 export interface Spot {

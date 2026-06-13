@@ -5,6 +5,7 @@ export async function fetchHealth(): Promise<{ status: string }> {
   if (!res.ok) throw new Error("API error");
   return res.json();
 }
+
 export type CouponItem = {
   couponId: string;
   title: string;

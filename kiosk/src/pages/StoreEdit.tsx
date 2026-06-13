@@ -3,7 +3,7 @@ import { useAuth } from "../store/auth";
 import { getMyStore, createStore, updateStore } from "../lib/api";
 
 export default function StoreEdit() {
-  const { token, storeId, setStore } = useAuth();
+  const { userId, storeId, setStore } = useAuth();
   const [name, setName]         = useState("");
   const [address, setAddress]   = useState("");
   const [lat, setLat]           = useState("");
@@ -14,8 +14,8 @@ export default function StoreEdit() {
   const [loaded, setLoaded]     = useState(false);
 
   useEffect(() => {
-    if (!token || loaded) return;
-    getMyStore(token).then((s) => {
+    if (!userId || loaded) return;
+    getMyStore(userId).then((s) => {
       if (s) {
         setName(s.name ?? "");
         setAddress(s.address ?? "");
@@ -25,7 +25,7 @@ export default function StoreEdit() {
         setStore(s.id, s.name);
       }
     }).catch(() => {}).finally(() => setLoaded(true));
-  }, [token]);
+  }, [userId]);
 
   const payload = () => ({
     name, address,
@@ -38,7 +38,7 @@ export default function StoreEdit() {
     setError(""); setMessage("");
     try {
       if (storeId) {
-        const s = await updateStore(token!, storeId, payload());
+        const s = await updateStore(storeId, payload());
         setStore(s.id, s.name);
         setMessage("店舗情報を更新しました");
       } else {
@@ -50,7 +50,7 @@ export default function StoreEdit() {
   const create = async () => {
     setError(""); setMessage("");
     try {
-      const s = await createStore(token!, payload());
+      const s = await createStore({ ...payload(), owner_id: userId! });
       setStore(s.id, s.name);
       setMessage("店舗を登録しました");
     } catch { setError("登録に失敗しました"); }
@@ -82,18 +82,8 @@ export default function StoreEdit() {
         {message && <p className="text-emerald-500 text-sm">{message}</p>}
 
         <div className="flex gap-3 pt-2">
-          <button
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg transition font-medium"
-            onClick={save}
-          >
-            保存
-          </button>
-          <button
-            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-lg transition font-medium"
-            onClick={create}
-          >
-            新規登録
-          </button>
+          <button className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg transition font-medium" onClick={save}>保存</button>
+          <button className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2.5 rounded-lg transition font-medium" onClick={create}>新規登録</button>
         </div>
       </div>
     </div>

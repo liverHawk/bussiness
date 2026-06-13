@@ -5,7 +5,7 @@ import { getCoupons, createCoupon } from "../lib/api";
 interface Coupon { id: string; code: string; discount_rate: number; expires_at?: string; }
 
 export default function Coupons() {
-  const { token, storeId } = useAuth();
+  const { storeId } = useAuth();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [code, setCode]         = useState("");
   const [discount, setDiscount] = useState("");
@@ -14,21 +14,16 @@ export default function Coupons() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!token || !storeId) return;
-    getCoupons(token, storeId).then(setCoupons).catch(() => {});
-  }, [token, storeId]);
+    if (!storeId) return;
+    getCoupons(storeId).then(setCoupons).catch(() => {});
+  }, [storeId]);
 
   const issue = async () => {
     setError(""); setMessage("");
     if (!code || !discount) { setError("コードと割引率を入力してください"); return; }
     if (!storeId) { setError("店舗が未登録です"); return; }
     try {
-      const c = await createCoupon(token!, {
-        store_id: storeId,
-        code,
-        discount_rate: parseFloat(discount) / 100,
-        expires_at: expires || null,
-      });
+      const c = await createCoupon({ store_id: storeId, code, discount_rate: parseFloat(discount) / 100, expires_at: expires || null });
       setCoupons([...coupons, c]);
       setCode(""); setDiscount(""); setExpires("");
       setMessage("クーポンを発行しました");
@@ -38,7 +33,6 @@ export default function Coupons() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-700 mb-6">クーポン管理</h1>
-
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-400 text-xs uppercase">
@@ -62,29 +56,13 @@ export default function Coupons() {
           </tbody>
         </table>
       </div>
-
-      {/* Issue form */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <p className="text-sm text-gray-500 mb-3 font-medium">新しいクーポンを発行</p>
         <div className="flex gap-3 flex-wrap">
-          <input
-            className="w-40 border border-gray-300 rounded-lg px-4 py-2.5 focus:border-indigo-500 transition text-sm"
-            placeholder="コード" value={code} onChange={(e) => setCode(e.target.value)}
-          />
-          <input
-            className="w-32 border border-gray-300 rounded-lg px-4 py-2.5 focus:border-indigo-500 transition text-sm"
-            placeholder="割引率（%）" type="number" value={discount} onChange={(e) => setDiscount(e.target.value)}
-          />
-          <input
-            className="w-44 border border-gray-300 rounded-lg px-4 py-2.5 focus:border-indigo-500 transition text-sm"
-            placeholder="有効期限 YYYY-MM-DD" value={expires} onChange={(e) => setExpires(e.target.value)}
-          />
-          <button
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg transition text-sm font-medium"
-            onClick={issue}
-          >
-            発行
-          </button>
+          <input className="w-40 border border-gray-300 rounded-lg px-4 py-2.5 focus:border-indigo-500 transition text-sm" placeholder="コード" value={code} onChange={(e) => setCode(e.target.value)} />
+          <input className="w-32 border border-gray-300 rounded-lg px-4 py-2.5 focus:border-indigo-500 transition text-sm" placeholder="割引率（%）" type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} />
+          <input className="w-44 border border-gray-300 rounded-lg px-4 py-2.5 focus:border-indigo-500 transition text-sm" placeholder="有効期限 YYYY-MM-DD" value={expires} onChange={(e) => setExpires(e.target.value)} />
+          <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg transition text-sm font-medium" onClick={issue}>発行</button>
         </div>
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
         {message && <p className="text-emerald-500 text-sm mt-2">{message}</p>}

@@ -1,12 +1,13 @@
-"""コイン購入・決済結果取得 API。
+"""コイン購入・決済結果取得・Stripe Webhook。
 
-POST /billing/coins/purchase      コイン購入を開始し決済用 URL を発行する
+POST /billing/coins/purchase      Stripe Checkout を作成し決済 URL を発行する
 GET  /billing/payments/{payment}  決済結果（追加コイン・総保有コイン）を取得する
+POST /billing/webhook             Stripe からの決済完了通知を受け取りコインを付与する
 """
 
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,15 +44,18 @@ async def purchase_coins(
     current_user: SupabaseAuthResult = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> CoinPurchaseResponse:
-    """コインの購入手続きを開始し、決済用 URL を発行する。"""
+    """コインの購入手続きを開始し、Stripe の決済用 URL を発行する。"""
     if body.coinAmount <= 0 or body.coinAmount > _MAX_COIN_AMOUNT:
         raise _error(400, "INVALID_AMOUNT", "購入できるコインの数量が正しくありません")
+
+    if not stripe_service.is_configured():
+        raise _error(503, "SERVER_ERROR", "決済サービスが設定されていません")
 
     amount_yen = body.coinAmount * settings.coin_to_yen_rate
     payment_id = f"pay_{secrets.token_hex(8)}"
 
     try:
-        checkout_url = await stripe_service.create_checkout_session(
+        checkout_url = stripe_service.create_checkout_session(
             payment_id=payment_id,
             coin_amount=body.coinAmount,
             amount_yen=amount_yen,
@@ -59,7 +63,6 @@ async def purchase_coins(
     except stripe_service.StripeError as exc:
         raise _error(503, "SERVER_ERROR", exc.message) from exc
 
-    # 決済記録を PENDING で保存（payments テーブル未作成でもレスポンスは返す）
     payment = Payment(
         payment_id=payment_id,
         user_id=current_user.user_id,
@@ -69,10 +72,7 @@ async def purchase_coins(
         stripe_checkout_url=checkout_url,
     )
     db.add(payment)
-    try:
-        await db.commit()
-    except Exception:
-        await db.rollback()
+    await db.commit()
 
     return CoinPurchaseResponse(
         paymentId=payment_id,
@@ -88,48 +88,26 @@ async def get_payment_result(
     current_user: SupabaseAuthResult = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> PaymentResultResponse:
-    """決済結果を確認し、追加されたコイン数と現在の総保有コインを返す。
+    """決済結果を確認し、追加コイン数と現在の総保有コインを返す。
 
-    デモ環境（Stripe 未設定）では、初回取得時に決済完了とみなしてコインを
-    加算する。Stripe 連携時は Webhook 等で COMPLETED に更新する想定。
+    COMPLETED への更新・コイン付与は Webhook で行われるため、ここでは
+    現在の状態をそのまま返す。
     """
-    try:
-        result = await db.execute(
-            select(Payment).where(Payment.payment_id == payment_id)
-        )
-        payment = result.scalar_one_or_none()
-    except Exception:
-        payment = None
+    result = await db.execute(
+        select(Payment).where(Payment.payment_id == payment_id)
+    )
+    payment = result.scalar_one_or_none()
 
     if payment is None or payment.user_id != current_user.user_id:
         raise _error(404, "PAYMENT_NOT_FOUND", "指定された決済情報が見つかりません")
 
-    added_coins = 0
-
-    # PENDING → COMPLETED への遷移時のみコインを加算（冪等）
-    if payment.status == "PENDING" and not stripe_service.is_configured():
-        user_result = await db.execute(
-            select(User).where(User.user_id == payment.user_id)
-        )
-        user = user_result.scalar_one_or_none()
-        if user is not None:
-            user.coin += payment.coin_amount
-            payment.status = "COMPLETED"
-            added_coins = payment.coin_amount
-            try:
-                await db.commit()
-                await db.refresh(user)
-            except Exception:
-                await db.rollback()
-    elif payment.status == "COMPLETED":
-        added_coins = payment.coin_amount
-
-    # 現在の総保有コインを取得
     user_result = await db.execute(
         select(User).where(User.user_id == payment.user_id)
     )
     user = user_result.scalar_one_or_none()
     current_total = user.coin if user is not None else 0
+
+    added_coins = payment.coin_amount if payment.status == "COMPLETED" else 0
 
     return PaymentResultResponse(
         paymentId=payment.payment_id,
@@ -137,3 +115,48 @@ async def get_payment_result(
         addedCoins=added_coins,
         currentTotalCoins=current_total,
     )
+
+
+@router.post("/webhook")
+async def stripe_webhook(
+    request: Request,
+    stripe_signature: str = Header(None, alias="Stripe-Signature"),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Stripe からの決済イベントを受け取り、完了時にコインを付与する。
+
+    署名検証のため raw body を使用する。checkout.session.completed を受信したら
+    対応する payment を COMPLETED にしてユーザーへコインを加算する（冪等）。
+    """
+    payload = await request.body()
+    if stripe_signature is None:
+        raise _error(400, "INVALID_SIGNATURE", "署名ヘッダーがありません")
+
+    try:
+        event = stripe_service.verify_webhook(payload, stripe_signature)
+    except stripe_service.StripeError as exc:
+        raise _error(400, "INVALID_SIGNATURE", exc.message) from exc
+
+    if event.get("type") == "checkout.session.completed":
+        session = event["data"]["object"]
+        payment_id = (session.get("metadata") or {}).get("payment_id") \
+            or session.get("client_reference_id")
+
+        if payment_id:
+            result = await db.execute(
+                select(Payment).where(Payment.payment_id == payment_id)
+            )
+            payment = result.scalar_one_or_none()
+
+            # PENDING のときだけ加算（冪等性を担保）
+            if payment is not None and payment.status == "PENDING":
+                user_result = await db.execute(
+                    select(User).where(User.user_id == payment.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+                if user is not None:
+                    user.coin += payment.coin_amount
+                payment.status = "COMPLETED"
+                await db.commit()
+
+    return {"received": True}

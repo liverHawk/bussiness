@@ -11,10 +11,11 @@ class Settings(BaseSettings):
     # ルート計算（OSRM）
     osrm_base_url: str = "https://router.project-osrm.org"
 
-    # コイン購入（Stripe）
-    stripe_secret_key: str = ""
-    # 1 コインあたりの日本円（例: 100 コイン = 500 円）
-    coin_to_yen_rate: int = 5
+    # コイン購入（Stripe テスト環境）
+    stripe_secret_key: str = ""          # sk_test_...
+    stripe_webhook_secret: str = ""      # whsec_...（Stripe CLI / ダッシュボードで取得）
+    # 1 コインあたりの日本円（1 コイン = 1 円）
+    coin_to_yen_rate: int = 1
     # 決済後のリダイレクト先（Stripe Checkout の success/cancel URL）
     frontend_base_url: str = "http://localhost:3000"
 

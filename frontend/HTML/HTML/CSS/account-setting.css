@@ -64,6 +64,12 @@ body {
     background: #d78a37;
     color: #fff;
     cursor: pointer;
+    transition: background 180ms ease, opacity 180ms ease;
+}
+
+.edit-profile:hover {
+    background: #c97727;
+    opacity: 0.9;
 }
 
 .profile-form {
@@ -100,6 +106,13 @@ body {
     font-size: 15px;
 }
 
+.field-group input:disabled,
+.field-block input:disabled {
+    background: #f0ebe5;
+    color: #a0a0a0;
+    cursor: not-allowed;
+}
+
 .field-block {
     display: flex;
     flex-direction: column;
@@ -114,6 +127,12 @@ body {
     font-size: 14px;
     text-decoration: underline;
     cursor: pointer;
+}
+
+.password-reset:disabled {
+    color: #a0a0a0;
+    text-decoration: line-through;
+    cursor: not-allowed;
 }
 
 @media (max-width: 420px) {

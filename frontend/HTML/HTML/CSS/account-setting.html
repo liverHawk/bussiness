@@ -21,23 +21,41 @@
                 <div class="field-row">
                     <div class="field-group">
                         <label for="last-name">ユーザー名</label>
-                        <input id="last-name" type="text" value="田中" />
+                        <input id="last-name" type="text" value="" disabled />
                     </div>
                     <div class="field-group">
                         <label for="first-name">&nbsp;</label>
-                        <input id="first-name" type="text" value="さとこ" />
+                        <input id="first-name" type="text" value="" disabled />
                     </div>
                 </div>
 
                 <div class="field-block">
                     <label for="email">メールアドレス</label>
-                    <input id="email" type="email" value="example@example.com" />
+                    <input id="email" type="email" value="" disabled />
                 </div>
 
                 <button type="button" class="password-reset">パスワード再設定</button>
             </form>
         </section>
     </main>
+
+    <script>
+        (function () {
+            const editBtn = document.querySelector('.edit-profile');
+            const inputs = document.querySelectorAll('.profile-form input');
+            const passwordBtn = document.querySelector('.password-reset');
+
+            editBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                const isEditing = !inputs[0].disabled;
+                inputs.forEach(input => {
+                    input.disabled = isEditing;
+                });
+                editBtn.textContent = isEditing ? 'プロフィールを編集する' : '編集完了';
+                passwordBtn.disabled = isEditing;
+            });
+        })();
+    </script>
 </body>
 
 </html>

@@ -1,13 +1,13 @@
 import { create } from "zustand";
 
 export interface Store {
-  id: string;
+  store_id: string;
   name: string;
   address?: string;
   lat?: number;
   lon?: number;
   capacity?: number;
-  crowd_level?: number;
+  crowrd_level?: number;
 }
 
 interface AuthState {
@@ -39,16 +39,16 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   setStores: (stores) => set((s) => ({
     stores,
-    activeStoreId: s.activeStoreId ?? stores[0]?.id ?? null,
+    activeStoreId: s.activeStoreId ?? stores[0]?.store_id ?? null,
   })),
 
   addStore: (store) => set((s) => ({
     stores: [...s.stores, store],
-    activeStoreId: s.activeStoreId ?? store.id,
+    activeStoreId: s.activeStoreId ?? store.store_id,
   })),
 
   updateStoreInList: (store) => set((s) => ({
-    stores: s.stores.map((x) => x.id === store.id ? { ...x, ...store } : x),
+    stores: s.stores.map((x) => x.store_id === store.store_id ? { ...x, ...store } : x),
   })),
 
   setActiveStore: (storeId) => set({ activeStoreId: storeId }),
@@ -62,11 +62,11 @@ export const useAuth = create<AuthState>((set, get) => ({
   get storeId() { return get().activeStoreId; },
   get storeName() {
     const s = get();
-    return s.stores.find((x) => x.id === s.activeStoreId)?.name ?? null;
+    return s.stores.find((x) => x.store_id === s.activeStoreId)?.name ?? null;
   },
   setStore: (storeId, storeName) => set((s) => {
-    const exists = s.stores.find((x) => x.id === storeId);
+    const exists = s.stores.find((x) => x.store_id === storeId);
     if (exists) return { activeStoreId: storeId };
-    return { activeStoreId: storeId, stores: [...s.stores, { id: storeId, name: storeName }] };
+    return { activeStoreId: storeId, stores: [...s.stores, { store_id: storeId, name: storeName }] };
   }),
 }));

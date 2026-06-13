@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/app_db"
-    allowed_origins: str = "http://localhost:3000"
+    allowed_origins: str = "*"
     allow_credentials: bool = False
 
     @property

@@ -53,7 +53,7 @@ export default function MyCouponsPage() {
           <p className="text-base text-slate-600">読み込み中...</p>
         ) : error ? (
           <p className="text-base text-red-600">{error}</p>
-        ) : coupons?.length === 0 ? (
+        ) : !coupons || coupons.length === 0 ? (
           <p className="text-base text-slate-600">保有しているクーポンはありません</p>
         ) : (
           <div className="space-y-4 pb-6">

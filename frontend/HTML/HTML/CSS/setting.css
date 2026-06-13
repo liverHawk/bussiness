@@ -1,0 +1,73 @@
+/* Simple mobile-friendly settings mock */
+:root{
+  --bg: #f3eae0;
+  --card: #ffffff;
+  --accent: #2b2b2b;
+  --muted: #8b8b8b;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family: "Noto Sans JP", Arial, sans-serif;
+  background:var(--bg);
+  color:var(--accent);
+  -webkit-font-smoothing:antialiased;
+}
+.header{
+  display:flex;
+  align-items:center;
+  padding:18px 20px;
+}
+.nav-icon, .user-icon{
+  background:none;
+  border:0;
+  font-size:22px;
+}
+.spacer{flex:1}
+.container{
+  max-width:420px;
+  margin:16px auto;
+  padding:18px;
+}
+.title{
+  text-align:center;
+  font-size:28px;
+  margin:18px 0 22px 0;
+}
+.settings-list{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.item{
+  display:flex;
+  align-items:center;
+  text-decoration:none;
+  color:var(--accent);
+  background:linear-gradient(#fff,#faf7f5);
+  padding:14px 18px;
+  border-radius:28px;
+  box-shadow:0 6px 14px rgba(0,0,0,0.06);
+}
+.item .icon{
+  width:40px;
+  height:40px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-right:14px;
+  font-size:18px;
+}
+.item .label{
+  flex:1;
+  font-size:18px;
+  text-align:center;
+}
+.item .chev{
+  font-size:22px;
+  color:var(--muted);
+}
+
+@media(min-width:600px){
+  .container{margin-top:30px}
+}

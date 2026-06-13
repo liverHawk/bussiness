@@ -229,3 +229,13 @@ body {
     margin-bottom: calc(20px + var(--safe-bottom));
   }
 }
+
+/* user icon image styling */
+.user-icon-img,
+.user-icon img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}

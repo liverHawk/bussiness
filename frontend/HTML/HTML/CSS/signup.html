@@ -12,7 +12,9 @@
 
     <header class="header">
         <h1 class="title">新規会員登録</h1>
-        <div class="user-icon">👤</div>
+        <div class="user-icon"><img class="user-icon-img"
+                src="https://cdn.discordapp.com/attachments/1508778554534395924/1515233618715344948/2026-06-13_14.57.01.png?ex=6a2e42c6&is=6a2cf146&hm=8535b4c7689c43b002b44bf60e2c6c0255cfac5d186345cdd8a076e0cc669dd8&"
+                alt="user"></div>
     </header>
 
     <main class="container">
@@ -37,6 +39,73 @@
             </button>
         </form>
     </main>
+
+    <script>
+        (function () {
+            const btn = document.querySelector('.register-btn');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const lastName = document.getElementById('last-name');
+            const firstName = document.getElementById('first-name');
+
+            function showError(msg) {
+                alert(msg);
+            }
+
+            async function register() {
+                const email = emailInput.value.trim();
+                const pwd = passwordInput.value;
+                const name = (lastName.value.trim() + ' ' + firstName.value.trim()).trim();
+
+                if (!email) { showError('メールアドレスは必須です'); return; }
+                if (!pwd || pwd.length < 8) { showError('パスワードは8文字以上で入力してください'); return; }
+                if (!name) { showError('氏名を入力してください'); return; }
+
+                const payload = { email: email, pwd_hash: pwd, name: name };
+
+                try {
+                    btn.disabled = true;
+                    const res = await fetch('http://localhost:8000/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (res.status === 200) {
+                        const data = await res.json();
+                        localStorage.setItem('accessToken', data.accessToken);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                        alert('登録が完了しました');
+                        location.href = 'login.html';
+                        return;
+                    }
+
+                    // エラーハンドリング
+                    const err = await res.json().catch(() => null);
+                    if (res.status === 400) {
+                        const message = err?.error?.message || '入力エラー';
+                        const details = err?.error?.details;
+                        if (Array.isArray(details) && details.length > 0) {
+                            showError(details[0].message);
+                        } else {
+                            showError(message);
+                        }
+                    } else if (res.status === 409) {
+                        showError(err?.error?.message || 'このメールアドレスは既に登録されています');
+                    } else {
+                        showError('サーバーエラーが発生しました');
+                    }
+
+                } catch (e) {
+                    showError('通信エラーが発生しました');
+                } finally {
+                    btn.disabled = false;
+                }
+            }
+
+            btn.addEventListener('click', register);
+        })();
+    </script>
 
 </body>
 

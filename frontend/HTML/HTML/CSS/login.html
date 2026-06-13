@@ -12,18 +12,20 @@
 
   <header class="header">
     <div class="nav-icon">☰</div>
-    <div class="user-icon">👤</div>
+    <div class="user-icon"><img class="user-icon-img"
+        src="https://cdn.discordapp.com/attachments/1508778554534395924/1515233618715344948/2026-06-13_14.57.01.png?ex=6a2e42c6&is=6a2cf146&hm=8535b4c7689c43b002b44bf60e2c6c0255cfac5d186345cdd8a076e0cc669dd8&"
+        alt="user"></div>
   </header>
 
   <main class="container">
     <h1 class="title">ログイン</h1>
 
-    <form class="login-form" action="#" method="post">
+    <form id="login-form" class="login-form">
       <label for="login-id">メールアドレスまたはユーザーID</label>
-      <input type="text" id="login-id" name="login-id">
+      <input type="email" id="login-id" name="login-id" required>
 
       <label for="password">パスワード</label>
-      <input type="password" id="password" name="password">
+      <input type="password" id="password" name="password" required>
 
       <button type="submit" class="login-btn">ログイン</button>
 
@@ -31,9 +33,54 @@
 
       <div class="register-box">
         <p>はじめての方はこちら</p>
-        <a href="#" class="register-btn">新規登録</a>
+        <a href="signup.html" class="register-btn">新規登録</a>
       </div>
     </form>
+
+    <script>
+      async function handleLogin(event) {
+        event.preventDefault();
+        const loginId = document.getElementById('login-id').value;
+        const pwd = document.getElementById('password').value;
+
+        // 簡易バリデーション
+        if (!loginId) {
+          alert('メールアドレスは必須です');
+          return;
+        }
+
+        const payload = { loginId: loginId, pwd_hash: pwd };
+
+        try {
+          const res = await fetch('http://localhost:8000/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          if (res.status === 200) {
+            const data = await res.json();
+            // トークン保存（簡易）
+            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('user', JSON.stringify(data.user));
+            alert('ログイン成功');
+            // リダイレクト等をここに追加
+          } else if (res.status === 400) {
+            const err = await res.json();
+            alert(err.error?.message || '入力エラー');
+          } else if (res.status === 401) {
+            const err = await res.json();
+            alert(err.error?.message || '認証に失敗しました');
+          } else {
+            alert('サーバーエラー');
+          }
+        } catch (e) {
+          alert('通信エラー');
+        }
+      }
+
+      document.getElementById('login-form').addEventListener('submit', handleLogin);
+    </script>
   </main>
 
 </body>

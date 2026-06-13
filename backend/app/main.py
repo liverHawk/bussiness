@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import health
+from app.routers import health, coupons
 
 app = FastAPI(title="58 in OMU API", version="0.1.0")
 

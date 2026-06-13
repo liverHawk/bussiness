@@ -32,6 +32,15 @@ body {
     font-size: 26px;
 }
 
+.user-icon-img,
+.user-icon img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
 /* カード */
 .container {
     max-width: 380px;

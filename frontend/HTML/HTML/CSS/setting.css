@@ -31,6 +31,15 @@ body {
     font-size: 22px;
 }
 
+.user-icon-img,
+.user-icon img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
 .spacer {
     flex: 1
 }

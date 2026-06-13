@@ -53,3 +53,37 @@ export async function searchSpots(
   const data: SpotSearchResponse = await res.json();
   return data.spots;
 }
+
+// ---- コイン購入 (POST /billing/coins/purchase) ----
+
+export interface CoinPurchaseResponse {
+  paymentId: string;
+  coinAmount: number;
+  amountInYen: number;
+  stripeCheckoutUrl: string;
+}
+
+export async function purchaseCoins(
+  coinAmount: number
+): Promise<CoinPurchaseResponse> {
+  const token = getAccessToken();
+  const res = await fetch(`${API_URL}/billing/coins/purchase`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ coinAmount }),
+  });
+  if (!res.ok) {
+    let message = `購入手続きに失敗しました (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body?.error?.message) message = body.error.message;
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}

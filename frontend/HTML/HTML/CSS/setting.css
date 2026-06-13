@@ -1,73 +1,231 @@
 /* Simple mobile-friendly settings mock */
-:root{
-  --bg: #f3eae0;
-  --card: #ffffff;
-  --accent: #2b2b2b;
-  --muted: #8b8b8b;
-}
-*{box-sizing:border-box}
-body{
-  margin:0;
-  font-family: "Noto Sans JP", Arial, sans-serif;
-  background:var(--bg);
-  color:var(--accent);
-  -webkit-font-smoothing:antialiased;
-}
-.header{
-  display:flex;
-  align-items:center;
-  padding:18px 20px;
-}
-.nav-icon, .user-icon{
-  background:none;
-  border:0;
-  font-size:22px;
-}
-.spacer{flex:1}
-.container{
-  max-width:420px;
-  margin:16px auto;
-  padding:18px;
-}
-.title{
-  text-align:center;
-  font-size:28px;
-  margin:18px 0 22px 0;
-}
-.settings-list{
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-}
-.item{
-  display:flex;
-  align-items:center;
-  text-decoration:none;
-  color:var(--accent);
-  background:linear-gradient(#fff,#faf7f5);
-  padding:14px 18px;
-  border-radius:28px;
-  box-shadow:0 6px 14px rgba(0,0,0,0.06);
-}
-.item .icon{
-  width:40px;
-  height:40px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  margin-right:14px;
-  font-size:18px;
-}
-.item .label{
-  flex:1;
-  font-size:18px;
-  text-align:center;
-}
-.item .chev{
-  font-size:22px;
-  color:var(--muted);
+:root {
+    --bg: #f3eae0;
+    --card: #ffffff;
+    --accent: #2b2b2b;
+    --muted: #8b8b8b;
 }
 
-@media(min-width:600px){
-  .container{margin-top:30px}
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    font-family: "Noto Sans JP", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--accent);
+    -webkit-font-smoothing: antialiased;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    padding: 18px 20px;
+}
+
+.nav-icon,
+.user-icon {
+    background: none;
+    border: 0;
+    font-size: 22px;
+}
+
+.spacer {
+    flex: 1
+}
+
+.container {
+    max-width: 420px;
+    margin: 16px auto;
+    padding: 22px;
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.title {
+    text-align: center;
+    font-size: 26px;
+    margin: 6px 0 20px 0;
+    font-weight: 700;
+}
+
+.settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--accent);
+    background: linear-gradient(#ffffff, #fbf8f6);
+    padding: 16px 20px;
+    border-radius: 32px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.item .icon {
+    width: 48px;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 14px;
+    font-size: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.03);
+}
+
+/* keep same transition timing but apply to icon for smooth hover */
+.item .icon {
+    transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.item:hover .icon,
+.item:focus .icon {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.item:focus,
+.item:hover {
+    outline: none;
+}
+
+.item {
+    cursor: pointer
+}
+
+.item .label {
+    flex: 1;
+    font-size: 18px;
+    text-align: left;
+    padding-left: 6px;
+}
+
+.item .chev {
+    font-size: 20px;
+    color: var(--muted);
+    opacity: 0.9;
+}
+
+/* colored icons for more emphasis */
+.item:nth-child(1) .icon {
+    background: linear-gradient(180deg, #7a4fe8, #5b2fcf);
+    color: #fff
+}
+
+.item:nth-child(2) .icon {
+    background: linear-gradient(180deg, #ffd166, #f4a261);
+    color: #3b2f0b
+}
+
+.item:nth-child(3) .icon {
+    background: linear-gradient(180deg, #6ec6ff, #3aa7ff);
+    color: #fff
+}
+
+/* hover / focus to emphasize */
+.item:hover,
+.item:focus {
+    transform: translateY(-6px);
+    box-shadow: 0 26px 60px rgba(0, 0, 0, 0.16);
+}
+
+/* Mobile tweaks and ensure icon transition is applied for all items */
+html,
+body {
+    height: 100%;
+}
+
+/* Scoped, specific transition to avoid being overridden */
+.settings-list .item .icon {
+    transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+/* Touch and accessibility optimizations */
+.item {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.item:active {
+    /* Disable transition effect on touch tap so navigation feels immediate */
+    transform: none;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+    transition: none;
+}
+
+@media (max-width: 420px) {
+    .container {
+        margin: 12px;
+        padding: 18px;
+        border-radius: 14px;
+    }
+
+    .title {
+        font-size: 24px;
+    }
+
+    .settings-list {
+        gap: 16px;
+    }
+
+    .item {
+        padding: 18px 16px;
+        border-radius: 26px;
+    }
+
+    .item .icon {
+        width: 44px;
+        height: 44px;
+        font-size: 18px;
+        margin-right: 12px;
+    }
+
+    .item .label {
+        font-size: 17px;
+    }
+}
+
+/* Apply hover transitions only on devices that support hover (desktop with mouse) */
+@media (hover: hover) and (pointer: fine) {
+
+    .settings-list .item:hover,
+    .settings-list .item:focus {
+        transform: translateY(-6px);
+        box-shadow: 0 26px 60px rgba(0, 0, 0, 0.16);
+    }
+
+    .settings-list .item:hover .icon,
+    .settings-list .item:focus .icon {
+        transform: translateY(-4px) scale(1.03);
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.14);
+    }
+}
+
+@media(min-width:600px) {
+    .container {
+        margin-top: 30px
+    }
+}
+
+/* Fallback: ensure hover works on Edge/other browsers regardless of pointer media query
+   (these duplicate rules are low-cost and only apply when a hover event occurs) */
+.settings-list .item:hover,
+.settings-list .item:focus {
+    transform: translateY(-6px);
+    box-shadow: 0 26px 60px rgba(0, 0, 0, 0.16);
+}
+
+.settings-list .item:hover .icon,
+.settings-list .item:focus .icon {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.14);
 }

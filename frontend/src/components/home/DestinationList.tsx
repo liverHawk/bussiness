@@ -33,7 +33,9 @@ export default function DestinationList({ destinations, setDestinations }: Props
           </div>
 
           <div className="flex-none">
-            <button onClick={() => remove(i)} className="text-gray-400 px-2 transition active:scale-90">✕</button>
+            {i > 0 && (
+              <button onClick={() => remove(i)} className="text-gray-400 px-2 transition active:scale-90">✕</button>
+            )}
           </div>
         </div>
       ))}

@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Header from './Header'
-import { ROUTE_RESULT } from '@/lib/routeResult'
+import { ROUTE_RESULT, type RouteResultData } from '@/lib/routeResult'
+import type { RouteGenerateResponse } from '@/lib/api'
 
 const RouteMap = dynamic(() => import('./RouteMap'), {
   ssr: false,
@@ -14,10 +15,93 @@ const RouteMap = dynamic(() => import('./RouteMap'), {
   ),
 })
 
+function buildRouteResultData(api: RouteGenerateResponse): RouteResultData {
+  const first = api.timeline[0]
+  const last = api.timeline[api.timeline.length - 1]
+  const departureName = first?.locationName ?? '出発地'
+  const destinationNames = api.timeline.slice(1).map((t) => t.locationName)
+  const finalDestinationName = last?.locationName ?? '目的地'
+
+  const toTimeStr = (h: number, m: number) =>
+    `${h}:${String(m).padStart(2, '0')}`
+
+  const departureTime = first
+    ? toTimeStr(first.estimatedHour, first.estimatedMinute)
+    : '—'
+  const arrivalTime = last
+    ? toTimeStr(last.estimatedHour, last.estimatedMinute)
+    : '—'
+
+  const path: [number, number][] =
+    api.path.length > 0
+      ? (api.path as [number, number][])
+      : api.timeline.map((t) => [t.latitude, t.longitude])
+
+  const startPosition: [number, number] = [
+    api.timeline[0]?.latitude ?? 0,
+    api.timeline[0]?.longitude ?? 0,
+  ]
+  const endPosition: [number, number] = [
+    last?.latitude ?? 0,
+    last?.longitude ?? 0,
+  ]
+
+  const EMOJIS = ['☕', '🍃', '🏯', '🎨', '🌸']
+  const waypoints = api.timeline.slice(1, -1).map((t, i) => ({
+    id: `w${i + 1}`,
+    name: t.locationName,
+    emoji: EMOJIS[i % EMOJIS.length],
+    arrival: toTimeStr(t.estimatedHour, t.estimatedMinute),
+    stay: '約30分',
+    lat: t.latitude,
+    lng: t.longitude,
+  }))
+
+  const STEP_ICONS = ['🔵', '🚶', '☕', '🚶', '🍃', '🚶', '🔴']
+  const timeline = api.timeline.map((t, i) => ({
+    id: `t${i + 1}`,
+    icon: STEP_ICONS[i % STEP_ICONS.length],
+    title: t.locationName,
+    subtitle: `${toTimeStr(t.estimatedHour, t.estimatedMinute)} ${t.actionLabel}`,
+  }))
+
+  const durationH = Math.floor(api.totalDuration / 60)
+  const durationM = api.totalDuration % 60
+  const durationLabel =
+    durationH > 0 ? `約${durationH}時間${durationM}分` : `約${durationM}分`
+
+  return {
+    departureName,
+    departureTime,
+    destinationNames,
+    finalDestinationName,
+    arrivalTime,
+    distanceKm: api.totalDistance,
+    durationLabel,
+    startPosition,
+    endPosition,
+    path,
+    waypoints,
+    timeline,
+  }
+}
+
 export default function RouteResultScreen() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [saved, setSaved] = useState(false)
-  const data = ROUTE_RESULT
+  const [data, setData] = useState<RouteResultData>(ROUTE_RESULT)
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('routeResult')
+      if (raw) {
+        const api = JSON.parse(raw) as RouteGenerateResponse
+        setData(buildRouteResultData(api))
+      }
+    } catch {
+      // セッションデータが壊れていたらモックを使用
+    }
+  }, [])
 
   return (
     <div className="relative flex h-screen w-full flex-col overflow-hidden bg-[#fffbf7] text-[#2f2419]">
@@ -75,7 +159,6 @@ export default function RouteResultScreen() {
               </div>
               <div className="mt-3 flex items-center gap-2 text-xs text-[#9a6a3a]">
                 <span className="rounded-full bg-[#fdf1e3] px-2.5 py-1">🚶 徒歩</span>
-                <span className="rounded-full bg-[#fdf1e3] px-2.5 py-1">🚃 電車</span>
                 <span className="rounded-full bg-[#fdf1e3] px-2.5 py-1">立ち寄り {data.waypoints.length}件</span>
               </div>
             </div>

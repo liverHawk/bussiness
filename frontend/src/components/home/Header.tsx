@@ -1,6 +1,11 @@
-// React import not required with new JSX transform
+"use client"
+
+import Link from 'next/link'
+import { getAccessToken } from '@/lib/api'
 
 export default function Header() {
+  const isLoggedIn = typeof window !== 'undefined' && !!getAccessToken()
+
   return (
     <header className="flex items-center justify-between py-2">
       <button
@@ -23,8 +28,8 @@ export default function Header() {
         </svg>
       </button>
 
-      <button
-        type="button"
+      <Link
+        href={isLoggedIn ? '/profile' : '/login'}
         aria-label="プロフィール"
         className="flex h-10 w-10 items-center justify-center rounded-full text-[#2f2419] transition active:scale-95 active:bg-black/5"
       >
@@ -40,7 +45,7 @@ export default function Header() {
           <circle cx="12" cy="10" r="3.2" />
           <path d="M5.5 19.2a7.2 7.2 0 0 1 13 0" strokeLinecap="round" />
         </svg>
-      </button>
+      </Link>
     </header>
   )
 }

@@ -1,21 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { GENRES } from "@/lib/genres";
+import { searchSpots, type Spot, type SpotSearchFilters } from "@/lib/api";
 
-interface FilterState {
-  congestion: string[];
-  genres: string[];
-  reviews: string[];
-}
-
-interface MockSpot {
-  spotId: string;
-  name: string;
-  category: string;
-  congestionStatus: string;
-  reviewRating: number;
-}
+type FilterState = SpotSearchFilters;
 
 const CONGESTION_OPTIONS = [
   { value: "crowded", label: "混雑" },
@@ -31,11 +20,13 @@ const REVIEW_OPTIONS = [
   { value: "2.0-below", label: "☆2.0以下", minReview: 0 },
 ];
 
-const MOCK_SPOTS: MockSpot[] = [
+const MOCK_SPOTS: Spot[] = [
   {
     spotId: "spt_001",
     name: "リバーサイドカフェ中之島",
     category: "カフェ",
+    latitude: 34.6925,
+    longitude: 135.5021,
     congestionStatus: "空いている",
     reviewRating: 4.5,
   },
@@ -43,17 +34,31 @@ const MOCK_SPOTS: MockSpot[] = [
     spotId: "spt_002",
     name: "難波テラスコーヒー",
     category: "カフェ",
+    latitude: 34.6655,
+    longitude: 135.5015,
     congestionStatus: "少し空き",
     reviewRating: 3.8,
   },
 ];
 
-export default function FilterPage(): JSX.Element {
+function allChecked(selected: string[], options: string[]): boolean {
+  return options.every((v) => selected.includes(v));
+}
+
+function toggleAll(selected: string[], options: string[]): string[] {
+  if (allChecked(selected, options)) return [];
+  return options;
+}
+
+export default function FilterPage(): React.JSX.Element {
   const [filters, setFilters] = useState<FilterState>({
     congestion: [],
     genres: [],
     reviews: [],
   });
+  const [results, setResults] = useState<Spot[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [usedMock, setUsedMock] = useState(false);
 
   const handleCongestionChange = (value: string): void => {
     setFilters((prev) => ({
@@ -82,133 +87,185 @@ export default function FilterPage(): JSX.Element {
     }));
   };
 
-  const handleFilter = (): void => {
-    const filterResult = {
-      selectedFilters: filters,
-      mockResults: MOCK_SPOTS,
-      timestamp: new Date().toISOString(),
-    };
-    console.log("Filter conditions:", filterResult);
+  const handleFilter = async (): Promise<void> => {
+    setLoading(true);
+    setUsedMock(false);
+    try {
+      const spots = await searchSpots(filters);
+      setResults(spots);
+    } catch {
+      // バックエンド未実装時のフォールバック（デモ用モック）
+      setResults(MOCK_SPOTS);
+      setUsedMock(true);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const congestionValues = CONGESTION_OPTIONS.map((o) => o.value);
+  const genreValues = GENRES.map((g) => g.id);
+  const reviewValues = REVIEW_OPTIONS.map((o) => o.value);
 
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-100">
+      <header className="sticky top-0 z-40 bg-white">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
-          <button
-            className="text-2xl text-gray-700 hover:text-gray-900"
-            aria-label="Menu"
-          >
+          <button className="text-2xl text-gray-700" aria-label="Menu">
             ☰
           </button>
-          <h1 className="text-lg font-semibold text-gray-900">検索</h1>
-          <button
-            className="text-2xl text-gray-700 hover:text-gray-900"
-            aria-label="Account"
-          >
+          <button className="text-2xl text-gray-700" aria-label="Account">
             👤
           </button>
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 py-6">
-        {/* Search Bar */}
-        <div className="flex items-center gap-2 mb-8 bg-gray-100 rounded-full px-4 py-2.5">
-          <span className="text-lg text-gray-500">🔍</span>
-          <input
-            type="text"
-            placeholder="検索"
-            className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-500"
-            readOnly
-          />
-          <button className="text-lg text-gray-500 hover:text-gray-700">
-            ⚙
-          </button>
-        </div>
-
+      <main className="max-w-md mx-auto px-4 py-4">
         {/* Filter Sections */}
-        <div className="space-y-6">
-          {/* Congestion Section */}
-          <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <h2 className="text-sm font-bold text-gray-900 mb-4">混雑</h2>
-            <div className="space-y-3">
+        <div className="space-y-5">
+
+          {/* Congestion */}
+          <div className="flex items-start gap-3">
+            <div className="flex items-center gap-1 pt-2 min-w-[72px]">
+              <span className="text-sm font-medium text-gray-800">混雑</span>
+              <input
+                type="checkbox"
+                checked={allChecked(filters.congestion, congestionValues)}
+                onChange={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    congestion: toggleAll(prev.congestion, congestionValues),
+                  }))
+                }
+                className="w-4 h-4 cursor-pointer"
+              />
+            </div>
+            <div className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 space-y-2">
               {CONGESTION_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className="flex items-center cursor-pointer group"
-                >
+                <label key={option.value} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={filters.congestion.includes(option.value)}
                     onChange={() => handleCongestionChange(option.value)}
-                    className="w-5 h-5 text-orange-400 rounded border-gray-300 cursor-pointer accent-orange-500"
+                    className="w-4 h-4 cursor-pointer"
                   />
-                  <span className="ml-3 text-gray-700 group-hover:text-gray-900">
-                    {option.label}
-                  </span>
+                  <span className="text-sm text-gray-700">{option.label}</span>
                 </label>
               ))}
             </div>
-          </section>
+          </div>
 
-          {/* Genre Section */}
-          <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <h2 className="text-sm font-bold text-gray-900 mb-4">ジャンル</h2>
-            <div className="space-y-3">
+          {/* Genre */}
+          <div className="flex items-start gap-3">
+            <div className="flex items-center gap-1 pt-2 min-w-[72px]">
+              <span className="text-sm font-medium text-gray-800">ジャンル</span>
+              <input
+                type="checkbox"
+                checked={allChecked(filters.genres, genreValues)}
+                onChange={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    genres: toggleAll(prev.genres, genreValues),
+                  }))
+                }
+                className="w-4 h-4 cursor-pointer"
+              />
+            </div>
+            <div className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 space-y-2">
               {GENRES.map((genre) => (
-                <label
-                  key={genre.id}
-                  className="flex items-center cursor-pointer group"
-                >
+                <label key={genre.id} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={filters.genres.includes(genre.id)}
                     onChange={() => handleGenreChange(genre.id)}
-                    className="w-5 h-5 text-orange-400 rounded border-gray-300 cursor-pointer accent-orange-500"
+                    className="w-4 h-4 cursor-pointer"
                   />
-                  <span className="ml-3 text-lg">{genre.icon}</span>
-                  <span className="ml-2 text-gray-700 group-hover:text-gray-900">
-                    {genre.name}
-                  </span>
+                  <span className="text-sm text-gray-700">{genre.name}</span>
                 </label>
               ))}
             </div>
-          </section>
+          </div>
 
-          {/* Review Section */}
-          <section className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <h2 className="text-sm font-bold text-gray-900 mb-4">レビュー</h2>
-            <div className="space-y-3">
+          {/* Review */}
+          <div className="flex items-start gap-3">
+            <div className="flex items-center gap-1 pt-2 min-w-[72px]">
+              <span className="text-sm font-medium text-gray-800">レビュー</span>
+              <input
+                type="checkbox"
+                checked={allChecked(filters.reviews, reviewValues)}
+                onChange={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    reviews: toggleAll(prev.reviews, reviewValues),
+                  }))
+                }
+                className="w-4 h-4 cursor-pointer"
+              />
+            </div>
+            <div className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 space-y-2">
               {REVIEW_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  className="flex items-center cursor-pointer group"
-                >
+                <label key={option.value} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={filters.reviews.includes(option.value)}
                     onChange={() => handleReviewChange(option.value)}
-                    className="w-5 h-5 text-orange-400 rounded border-gray-300 cursor-pointer accent-orange-500"
+                    className="w-4 h-4 cursor-pointer"
                   />
-                  <span className="ml-3 text-gray-700 group-hover:text-gray-900">
-                    {option.label}
-                  </span>
+                  <span className="text-sm text-gray-700">{option.label}</span>
                 </label>
               ))}
             </div>
-          </section>
-
-          {/* Filter Button */}
-          <div className="pt-2 pb-8">
-            <button
-              onClick={handleFilter}
-              className="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white font-semibold py-3 px-6 rounded-full transition-colors duration-200"
-            >
-              この条件で絞り込む &gt;
-            </button>
           </div>
+
         </div>
+
+        {/* Filter Button */}
+        <div className="mt-8">
+          <button
+            onClick={handleFilter}
+            disabled={loading}
+            className="w-full bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:opacity-60 text-white font-semibold py-3 px-6 rounded-full transition-colors duration-200"
+          >
+            {loading ? "検索中..." : "この条件で絞り込む >"}
+          </button>
+        </div>
+
+        {/* Results */}
+        {results !== null && (
+          <section className="mt-6 pb-8">
+            {usedMock && (
+              <p className="mb-3 text-xs text-amber-600">
+                ※ バックエンド未接続のためモックデータを表示しています
+              </p>
+            )}
+            {results.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-6">
+                条件に一致するスポットがありません
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {results.map((spot) => (
+                  <li
+                    key={spot.spotId}
+                    className="bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900">{spot.name}</span>
+                      <span className="text-sm text-amber-500">
+                        ☆ {spot.reviewRating.toFixed(1)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                      <span>{spot.category}</span>
+                      <span>·</span>
+                      <span>{spot.congestionStatus}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
       </main>
     </div>
   );

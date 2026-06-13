@@ -13,13 +13,13 @@ L.Icon.Default.mergeOptions({
 });
 
 interface StorePin {
-  id: string;
+  store_id: string;
   name: string;
   address?: string;
   lat: number;
   lon: number;
   capacity?: number;
-  crowd_level?: number;
+  crowrd_level?: number;
 }
 
 function crowdColor(level: number | undefined): string {
@@ -101,11 +101,11 @@ export default function Map() {
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           {stores.map((s) => {
-            const color = crowdColor(s.crowd_level);
-            const level = s.crowd_level ?? 0;
+            const color = crowdColor(s.crowrd_level);
+            const level = s.crowrd_level ?? 0;
             return (
               <CircleMarker
-                key={s.id}
+                key={s.store_id}
                 center={[s.lat, s.lon]}
                 radius={18}
                 pathOptions={{
@@ -123,9 +123,9 @@ export default function Map() {
                       className="text-sm font-semibold mb-2"
                       style={{ color }}
                     >
-                      {crowdLabel(s.crowd_level)}
+                      {crowdLabel(s.crowrd_level)}
                     </div>
-                    {s.crowd_level !== undefined && s.capacity && (
+                    {s.crowrd_level !== undefined && s.capacity && (
                       <>
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div

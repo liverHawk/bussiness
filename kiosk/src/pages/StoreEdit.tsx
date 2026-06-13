@@ -40,7 +40,7 @@ export default function StoreEdit() {
   }, [userId]);
 
   useEffect(() => {
-    const s = stores.find((x) => x.id === activeStoreId);
+    const s = stores.find((x) => x.store_id === activeStoreId);
     if (s) {
       setForm({
         name: s.name ?? "",
@@ -97,9 +97,9 @@ export default function StoreEdit() {
     setError(""); setMessage("");
     if (!form.name) { setError("店舗名を入力してください"); return; }
     try {
-      const s = await createStore({ ...payload(), owner_id: userId! });
+      const s = await createStore({ ...payload(), owner: userId! });
       addStore(s);
-      setActiveStore(s.id);
+      setActiveStore(s.store_id);
       setMessage("店舗を登録しました");
     } catch { setError("登録に失敗しました"); }
   };
@@ -126,13 +126,13 @@ export default function StoreEdit() {
             )}
             {stores.map((s) => (
               <button
-                key={s.id}
+                key={s.store_id}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition ${
-                  s.id === activeStoreId
+                  s.store_id === activeStoreId
                     ? "bg-indigo-600 text-white font-semibold"
                     : "hover:bg-gray-100 text-gray-700"
                 }`}
-                onClick={() => setActiveStore(s.id)}
+                onClick={() => setActiveStore(s.store_id)}
               >
                 {s.name}
               </button>

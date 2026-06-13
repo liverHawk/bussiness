@@ -3,7 +3,7 @@ import jsQR from "jsqr";
 import { useAuth } from "../store/auth";
 import { getProducts, processPayment } from "../lib/api";
 
-interface Product { id: string; name: string; price: number; }
+interface Product { merchandise_id: string; name: string; price: number; }
 interface CartItem { product: Product; qty: number; }
 
 export default function Payment() {
@@ -50,8 +50,8 @@ export default function Payment() {
 
   const addToCart = (product: Product) => {
     setCart((prev) => {
-      const existing = prev.find((i) => i.product.id === product.id);
-      if (existing) return prev.map((i) => i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i);
+      const existing = prev.find((i) => i.product.merchandise_id === product.merchandise_id);
+      if (existing) return prev.map((i) => i.product.merchandise_id === product.merchandise_id ? { ...i, qty: i.qty + 1 } : i);
       return [...prev, { product, qty: 1 }];
     });
   };
@@ -65,8 +65,8 @@ export default function Payment() {
     try {
       const result = await processPayment({
         user_id: userId, store_id: storeId!,
-        items: cart.map((i) => ({ merchandise_id: i.product.id, qty: i.qty })),
-        coupon_code: coupon || null,
+        items: cart.map((i) => ({ merchandise_id: i.product.merchandise_id, qty: i.qty })),
+        coupon_id: coupon || null,
       });
       setMessage(`¥${(result as any).total.toLocaleString()} の決済が完了しました！`);
       setCart([]); setUserId(null); setCoupon("");
@@ -96,7 +96,7 @@ export default function Payment() {
             <p className="text-sm text-gray-500 mb-3 font-medium">商品を選択</p>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {products.map((p) => (
-                <button key={p.id} className="w-full flex justify-between items-center px-4 py-2.5 bg-gray-50 hover:bg-indigo-50 rounded-lg transition text-sm" onClick={() => addToCart(p)}>
+                <button key={p.merchandise_id} className="w-full flex justify-between items-center px-4 py-2.5 bg-gray-50 hover:bg-indigo-50 rounded-lg transition text-sm" onClick={() => addToCart(p)}>
                   <span className="text-gray-700">{p.name}</span>
                   <span className="text-indigo-600 font-medium">¥{p.price.toLocaleString()}</span>
                 </button>
@@ -112,7 +112,7 @@ export default function Payment() {
               : (
                 <div className="space-y-2 mb-4">
                   {cart.map((item) => (
-                    <div key={item.product.id} className="flex justify-between text-sm text-gray-700">
+                    <div key={item.product.merchandise_id} className="flex justify-between text-sm text-gray-700">
                       <span>{item.product.name} × {item.qty}</span>
                       <span>¥{(item.product.price * item.qty).toLocaleString()}</span>
                     </div>
@@ -123,8 +123,8 @@ export default function Payment() {
                 </div>
               )
             }
-            <label className="block text-sm text-gray-500 mb-1">クーポンコード（任意）</label>
-            <input className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-indigo-500 transition mb-4" placeholder="例：SUMMER10" value={coupon} onChange={(e) => setCoupon(e.target.value)} />
+            <label className="block text-sm text-gray-500 mb-1">クーポンID（任意・客のクーポンQRをスキャンした値）</label>
+            <input className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:border-indigo-500 transition mb-4" placeholder="cp_... / クーポンID" value={coupon} onChange={(e) => setCoupon(e.target.value)} />
             {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
             {message && <p className="text-emerald-500 font-semibold text-center mb-2">{message}</p>}
             <div className="flex gap-3">

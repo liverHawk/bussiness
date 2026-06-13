@@ -28,12 +28,13 @@ export async function logout() {
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────
+// 列名は schema.sql に準拠: PK=store_id, FK=owner, 混雑度=crowrd_level
 
 export async function getMyStores(userId: string) {
   const { data, error } = await supabase
     .from("stores")
     .select("*")
-    .eq("owner_id", userId)
+    .eq("owner", userId)
     .order("created_at");
   if (error) throw new Error(error.message);
   return data ?? [];
@@ -48,16 +49,20 @@ export async function getMyStore(userId: string) {
 export async function getAllStores() {
   const { data, error } = await supabase
     .from("stores")
-    .select("id, name, address, lat, lon, capacity, crowd_level")
+    .select("store_id, name, address, lat, lon, capacity, crowrd_level")
     .order("name");
   if (error) throw new Error(error.message);
   return data ?? [];
 }
 
 export async function createStore(payload: {
-  name: string; address: string; lat: number; lon: number; capacity: number; owner_id: string;
+  name: string; address: string; lat: number; lon: number; capacity: number; owner: string;
 }) {
-  const { data, error } = await supabase.from("stores").insert(payload).select().single();
+  const { data, error } = await supabase
+    .from("stores")
+    .insert({ ...payload, description: "" })
+    .select()
+    .single();
   if (error) throw new Error(error.message);
   return data;
 }
@@ -66,35 +71,36 @@ export async function updateStore(storeId: string, payload: Partial<{
   name: string; address: string; lat: number; lon: number; capacity: number;
 }>) {
   const { data, error } = await supabase
-    .from("stores").update(payload).eq("id", storeId).select().single();
+    .from("stores").update(payload).eq("store_id", storeId).select().single();
   if (error) throw new Error(error.message);
   return data;
 }
 
 export async function updateCongestion(storeId: string, crowdLevel: number) {
   const { error } = await supabase
-    .from("stores").update({ crowd_level: crowdLevel }).eq("id", storeId);
+    .from("stores").update({ crowrd_level: crowdLevel }).eq("store_id", storeId);
   if (error) throw new Error(error.message);
 }
 
-// ── Products ──────────────────────────────────────────────────────────────
+// ── Products（merchandise）────────────────────────────────────────────────
+// 列名は schema.sql に準拠: PK=merchandise_id, FK=store
 
 export async function getProducts(storeId: string) {
   const { data, error } = await supabase
-    .from("merchandise").select("*").eq("store_id", storeId).order("created_at");
+    .from("merchandise").select("*").eq("store", storeId).order("created_at");
   if (error) throw new Error(error.message);
   return data ?? [];
 }
 
 export async function createProduct(storeId: string, payload: { name: string; price: number }) {
   const { data, error } = await supabase
-    .from("merchandise").insert({ ...payload, store_id: storeId }).select().single();
+    .from("merchandise").insert({ ...payload, store: storeId, describe: "" }).select().single();
   if (error) throw new Error(error.message);
   return data;
 }
 
 export async function deleteProduct(productId: string) {
-  const { error } = await supabase.from("merchandise").delete().eq("id", productId);
+  const { error } = await supabase.from("merchandise").delete().eq("merchandise_id", productId);
   if (error) throw new Error(error.message);
 }
 
@@ -112,6 +118,7 @@ export async function createCoupon(payload: {
   title: string;
   description?: string | null;
   expiry_date: string;            // YYYY-MM-DD
+  discount_amount: number;        // 割引額（円）
   required_coins: number;
   qr_code_url?: string | null;    // 未指定なら coupon_id から自動生成
 }) {
@@ -123,6 +130,7 @@ export async function createCoupon(payload: {
       title: payload.title,
       description: payload.description ?? null,
       expiry_date: payload.expiry_date,
+      discount_amount: payload.discount_amount,
       required_coins: payload.required_coins,
       qr_code_url: payload.qr_code_url || "pending",
     })
@@ -147,25 +155,40 @@ export async function processPayment(payload: {
   user_id: string;
   store_id: string;
   items: { merchandise_id: string; qty: number }[];
-  coupon_code?: string | null;
+  coupon_id?: string | null;
 }) {
   const ids = payload.items.map((i) => i.merchandise_id);
   const { data: products, error: pErr } = await supabase
-    .from("merchandise").select("id, price").in("id", ids);
+    .from("merchandise").select("merchandise_id, price").in("merchandise_id", ids);
   if (pErr) throw new Error(pErr.message);
 
-  const priceMap = Object.fromEntries((products ?? []).map((p: any) => [p.id, p.price]));
+  const priceMap = Object.fromEntries(
+    (products ?? []).map((p: any) => [p.merchandise_id, p.price])
+  );
   let total = payload.items.reduce((s, i) => s + (priceMap[i.merchandise_id] ?? 0) * i.qty, 0);
 
-  // クーポン適用
-  if (payload.coupon_code) {
-    const { data: coupon } = await supabase
+  // クーポン適用（割引額を total から差し引く）
+  if (payload.coupon_id) {
+    const { data: coupon, error: cErr } = await supabase
       .from("coupons")
-      .select("discount_rate")
-      .eq("store_id", payload.store_id)
-      .eq("code", payload.coupon_code)
+      .select("discount_amount, expiry_date")
+      .eq("coupon_id", payload.coupon_id)
+      .eq("store", payload.store_id)
       .maybeSingle();
-    if (coupon) total = Math.floor(total * (1 - (coupon as any).discount_rate));
+    if (cErr) throw new Error(cErr.message);
+    if (!coupon) throw new Error("クーポンが見つかりません");
+    if ((coupon as any).expiry_date && (coupon as any).expiry_date < new Date().toISOString().slice(0, 10)) {
+      throw new Error("クーポンの有効期限が切れています");
+    }
+    total = Math.max(0, total - ((coupon as any).discount_amount ?? 0));
+
+    // 使用記録を残す（重複時は無視）
+    await supabase
+      .from("coupon_usages")
+      .upsert(
+        { user_id: payload.user_id, coupon: payload.coupon_id },
+        { onConflict: "user_id,coupon", ignoreDuplicates: true }
+      );
   }
 
   // コイン残高確認・減算

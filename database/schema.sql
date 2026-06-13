@@ -26,16 +26,20 @@ CREATE TABLE IF NOT EXISTS users (
 -- ============================================================
 -- stores（店舗）
 -- crowrd_level: 0.0（空いている）〜 1.0（混雑）
+-- address / capacity は店舗管理アプリ(kiosk)で使用
 -- ============================================================
 CREATE TABLE IF NOT EXISTS stores (
     store_id     UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     owner        UUID         NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     name         VARCHAR(50)  NOT NULL,
-    description  TEXT         NOT NULL,
+    description  TEXT         NOT NULL DEFAULT '',
+    address      TEXT,
+    capacity     INTEGER,
     crowrd_level FLOAT        CHECK (crowrd_level >= 0.0 AND crowrd_level <= 1.0),
     -- 地図表示用の位置情報（docs/map.md 参照）
     lat          DOUBLE PRECISION CHECK (lat >= -90.0  AND lat <= 90.0),
-    lon          DOUBLE PRECISION CHECK (lon >= -180.0 AND lon <= 180.0)
+    lon          DOUBLE PRECISION CHECK (lon >= -180.0 AND lon <= 180.0),
+    created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
 
@@ -91,20 +95,40 @@ CREATE TABLE IF NOT EXISTS merchandise (
     merchandise_id  UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     store           UUID         NOT NULL REFERENCES stores(store_id) ON DELETE CASCADE,
     name            VARCHAR(50)  NOT NULL,
-    describe        TEXT         NOT NULL,
-    price           INTEGER      NOT NULL
+    describe        TEXT         NOT NULL DEFAULT '',
+    price           INTEGER      NOT NULL,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
 
 -- ============================================================
--- coupons（商品クーポン）
+-- coupons（店舗が発行するクーポン）
+-- 全ユーザーに配布される。所有概念はなく、使用状況は coupon_usages で管理。
+-- discount_amount: レジ決済での割引額（円）
+-- required_coins:  利用に必要なアプリ内コイン（0 なら無料）
 -- ============================================================
 CREATE TABLE IF NOT EXISTS coupons (
-    coupon_id        UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
-    merchandise      UUID         NOT NULL REFERENCES merchandise(merchandise_id) ON DELETE CASCADE,
-    name             VARCHAR(50)  NOT NULL,
-    describe         TEXT,
-    discounted_price INTEGER      NOT NULL
+    coupon_id       UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+    store           UUID          NOT NULL REFERENCES stores(store_id) ON DELETE CASCADE,
+    title           VARCHAR(100)  NOT NULL,
+    description     TEXT,
+    qr_code_url     VARCHAR(1000) NOT NULL,
+    expiry_date     DATE          NOT NULL,
+    discount_amount INTEGER       NOT NULL DEFAULT 0,
+    required_coins  INTEGER       NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ   NOT NULL DEFAULT now()
+);
+
+
+-- ============================================================
+-- coupon_usages（ユーザーごとのクーポン使用記録）
+-- どのユーザーがどのクーポンを使ったか。my-list の isUsed 判定に使う。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS coupon_usages (
+    user_id  UUID         NOT NULL REFERENCES users(user_id)     ON DELETE CASCADE,
+    coupon   UUID         NOT NULL REFERENCES coupons(coupon_id) ON DELETE CASCADE,
+    used_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, coupon)
 );
 
 
@@ -123,27 +147,46 @@ CREATE TABLE IF NOT EXISTS reviews (
 
 
 -- ============================================================
+-- payments（コイン購入の決済記録）
+-- status: 'PENDING' | 'COMPLETED' | 'FAILED'
+-- ============================================================
+CREATE TABLE IF NOT EXISTS payments (
+    payment_id          VARCHAR(64)  PRIMARY KEY,
+    user_id             UUID         NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    coin_amount         INTEGER      NOT NULL,
+    amount_yen          INTEGER      NOT NULL,
+    status              VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
+    stripe_checkout_url TEXT,
+    created_at          TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+
+-- ============================================================
 -- インデックス（よく検索するカラムに貼る）
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_stores_owner        ON stores(owner);
 CREATE INDEX IF NOT EXISTS idx_routes_user         ON routes("user");
 CREATE INDEX IF NOT EXISTS idx_route_points_route  ON route_points(route);
 CREATE INDEX IF NOT EXISTS idx_merchandise_store   ON merchandise(store);
-CREATE INDEX IF NOT EXISTS idx_coupons_merchandise ON coupons(merchandise);
+CREATE INDEX IF NOT EXISTS idx_coupons_store       ON coupons(store);
+CREATE INDEX IF NOT EXISTS idx_coupon_usages_user  ON coupon_usages(user_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_store       ON reviews(store);
 CREATE INDEX IF NOT EXISTS idx_store_tags_store    ON store_tags(store);
+CREATE INDEX IF NOT EXISTS idx_payments_user       ON payments(user_id);
 
 
 -- ============================================================
 -- Row Level Security（RLS）
 -- 現在は無効。認証実装後に有効化してポリシーを追加すること。
 -- ============================================================
--- ALTER TABLE users        ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE stores       ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE tags         ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE store_tags   ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE routes       ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE route_points ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE merchandise  ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE coupons      ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE reviews      ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE users         ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE stores        ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE tags          ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE store_tags    ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE routes        ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE route_points  ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE merchandise   ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE coupons       ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE coupon_usages ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE reviews       ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE payments      ENABLE ROW LEVEL SECURITY;

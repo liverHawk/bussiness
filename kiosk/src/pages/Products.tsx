@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../store/auth";
 import { getProducts, createProduct, deleteProduct } from "../lib/api";
 
-interface Product { id: string; name: string; price: number; }
+interface Product { merchandise_id: string; name: string; price: number; }
 
 export default function Products() {
   const { storeId } = useAuth();
@@ -32,7 +32,7 @@ export default function Products() {
   const del = async (id: string) => {
     try {
       await deleteProduct(id);
-      setProducts(products.filter((p) => p.id !== id));
+      setProducts(products.filter((p) => p.merchandise_id !== id));
     } catch { setError("削除に失敗しました"); }
   };
 
@@ -53,11 +53,11 @@ export default function Products() {
               <tr><td colSpan={3} className="px-6 py-8 text-center text-gray-300">商品がありません</td></tr>
             )}
             {products.map((p) => (
-              <tr key={p.id} className="hover:bg-gray-50">
+              <tr key={p.merchandise_id} className="hover:bg-gray-50">
                 <td className="px-6 py-3 text-gray-700 font-medium">{p.name}</td>
                 <td className="px-6 py-3 text-right text-gray-600">¥{p.price.toLocaleString()}</td>
                 <td className="px-4 py-3 text-right">
-                  <button className="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-3 py-1 rounded-md transition" onClick={() => del(p.id)}>削除</button>
+                  <button className="text-xs text-red-400 hover:text-red-600 border border-red-200 hover:border-red-400 px-3 py-1 rounded-md transition" onClick={() => del(p.merchandise_id)}>削除</button>
                 </td>
               </tr>
             ))}

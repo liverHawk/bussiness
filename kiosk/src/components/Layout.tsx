@@ -14,7 +14,7 @@ const NAV = [
 export default function Layout() {
   const { userName, stores, activeStoreId, setActiveStore, logout } = useAuth();
   const navigate = useNavigate();
-  const activeName = stores.find((s) => s.id === activeStoreId)?.name;
+  const activeName = stores.find((s) => s.store_id === activeStoreId)?.name;
 
   const handleLogout = () => {
     logout();
@@ -40,7 +40,7 @@ export default function Layout() {
               onChange={(e) => setActiveStore(e.target.value)}
             >
               {stores.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.store_id} value={s.store_id}>{s.name}</option>
               ))}
             </select>
           </div>

@@ -27,11 +27,38 @@ class SupabaseAuthService:
 
     def __init__(self, url: str, anon_key: str) -> None:
         self._base_url = url.rstrip("/")
+        self._anon_key = anon_key
         self._headers = {
             "apikey": anon_key,
             "Authorization": f"Bearer {anon_key}",
             "Content-Type": "application/json",
         }
+
+    async def get_user(self, access_token: str) -> SupabaseAuthResult:
+        """ユーザーのアクセストークンを検証し、ユーザー情報を返す。"""
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{self._base_url}/auth/v1/user",
+                headers={
+                    "apikey": self._anon_key,
+                    "Authorization": f"Bearer {access_token}",
+                },
+            )
+
+        if response.status_code == 200:
+            data = response.json()
+            user_id = data.get("id")
+            if not user_id:
+                raise SupabaseAuthError("INVALID_TOKEN", "認証に失敗しました", 401)
+            metadata = data.get("user_metadata") or {}
+            return SupabaseAuthResult(
+                access_token=access_token,
+                user_id=uuid.UUID(user_id),
+                email=data.get("email") or "",
+                name=metadata.get("name") or "",
+            )
+
+        raise SupabaseAuthError("INVALID_TOKEN", "認証に失敗しました", 401)
 
     async def sign_up(self, email: str, password: str, name: str) -> SupabaseAuthResult:
         async with httpx.AsyncClient(timeout=30.0) as client:

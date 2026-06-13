@@ -11,28 +11,65 @@ const ESP32_KEYWORDS: &[&str] = &[
     "CP210", "CH340", "CH341", "FTDI", "USB Serial", "USB-SERIAL", "ESP32",
 ];
 
-// 書き込むスケッチ（Wi-Fi プローブリクエストをカウントしてシリアル送信）
+// 書き込むスケッチ
+// 設計方針:
+//   - 全 Wi-Fi チャンネル (1-13ch) を 200ms ずつホッピング → 取りこぼし激減
+//   - ISR はリングバッファに MAC を書くだけ。std::map はメインループで操作
+//   - 30 秒スライディングウィンドウでユニーク MAC を管理 → ランダム MAC の重複を軽減
+//   - RSSI フィルタなし（広めに検知）
 const SKETCH: &str = r#"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "nvs_flash.h"
+#include <map>
+#include <string>
+#include <string.h>
 
-volatile int probe_count = 0;
+// ── パラメータ ──────────────────────────────────────────
+#define WINDOW_SEC      30    // ユニーク MAC の保持時間（秒）
+#define CHANNEL_DWELL   200   // 各チャンネルの滞在時間（ms）
+#define MAX_CHANNEL     13    // 日本国内の最大チャンネル
+#define MAC_BUF_SIZE    64    // ISR → メインループ用リングバッファ容量
 
+// ── ISR ↔ メインループ共有リングバッファ ─────────────────
+static uint8_t  mac_buf[MAC_BUF_SIZE][6];
+static volatile int buf_head = 0;
+static volatile int buf_tail = 0;
+
+// ── MAC → 最終検知時刻 (ms) テーブル（メインループのみ操作）──
+static std::map<std::string, unsigned long> mac_table;
+
+// ── プロミスキャスコールバック（ISR コンテキスト）─────────
 void IRAM_ATTR sniffer_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
-  if (type == WIFI_PKT_MGMT) {
-    wifi_promiscuous_pkt_t* pkt = (wifi_promiscuous_pkt_t*)buf;
-    if ((pkt->payload[0] & 0xFC) == 0x40) {  // Probe Request
-      probe_count++;
-    }
+  if (type != WIFI_PKT_MGMT) return;
+  const wifi_promiscuous_pkt_t* pkt = (const wifi_promiscuous_pkt_t*)buf;
+  const uint8_t* payload = pkt->payload;
+
+  // Probe Request のみ（frame control 下位 6bit = 0x40）
+  if ((payload[0] & 0xFC) != 0x40) return;
+
+  // Source MAC: 802.11 管理フレーム bytes 10-15
+  int next = (buf_head + 1) % MAC_BUF_SIZE;
+  if (next != buf_tail) {                 // バッファ満杯でなければ積む
+    memcpy(mac_buf[buf_head], payload + 10, 6);
+    buf_head = next;
   }
 }
 
+static std::string mac_to_str(const uint8_t* m) {
+  char s[13];
+  snprintf(s, sizeof(s), "%02x%02x%02x%02x%02x%02x",
+           m[0], m[1], m[2], m[3], m[4], m[5]);
+  return std::string(s);
+}
+
+// ── セットアップ ─────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
   nvs_flash_init();
   esp_netif_init();
   esp_event_loop_create_default();
+
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
   esp_wifi_init(&cfg);
   esp_wifi_set_storage(WIFI_STORAGE_RAM);
@@ -40,12 +77,39 @@ void setup() {
   esp_wifi_start();
   esp_wifi_set_promiscuous(true);
   esp_wifi_set_promiscuous_rx_cb(&sniffer_cb);
+  esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
 }
 
+// ── メインループ ─────────────────────────────────────────
 void loop() {
-  Serial.println(probe_count);
-  probe_count = 0;
-  delay(1000);
+  static uint8_t  ch          = 1;
+  static unsigned long last_report = 0;
+
+  // 1. チャンネルホッピング（全帯域をカバー）
+  esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
+  ch = (ch % MAX_CHANNEL) + 1;
+
+  delay(CHANNEL_DWELL);
+
+  unsigned long now = millis();
+
+  // 2. ISR リングバッファからMAC取り出し → テーブルに登録
+  while (buf_tail != buf_head) {
+    mac_table[mac_to_str(mac_buf[buf_tail])] = now;
+    buf_tail = (buf_tail + 1) % MAC_BUF_SIZE;
+  }
+
+  // 3. ウィンドウ外（30秒以上前）のエントリを削除
+  const unsigned long win = (unsigned long)WINDOW_SEC * 1000UL;
+  for (auto it = mac_table.begin(); it != mac_table.end(); ) {
+    it = (now - it->second > win) ? mac_table.erase(it) : std::next(it);
+  }
+
+  // 4. 1 秒ごとにユニーク台数をシリアル出力
+  if (now - last_report >= 1000UL) {
+    Serial.println((int)mac_table.size());
+    last_report = now;
+  }
 }
 "#;
 

@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { useAuth } from "../store/auth";
 import { getMyStores, createStore, updateStore } from "../lib/api";
+
+// Vite バンドル対策
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:     "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 interface StoreForm {
   name: string; address: string; lat: string; lon: string; capacity: string;
@@ -8,17 +19,24 @@ interface StoreForm {
 
 const empty = (): StoreForm => ({ name: "", address: "", lat: "", lon: "", capacity: "" });
 
+/** マップクリックで親に緯度経度を渡すコンポーネント */
+function MapPicker({ onPick }: { onPick: (lat: number, lon: number) => void }) {
+  useMapEvents({
+    click(e) { onPick(e.latlng.lat, e.latlng.lng); },
+  });
+  return null;
+}
+
 export default function StoreEdit() {
   const { userId, stores, activeStoreId, setStores, addStore, updateStoreInList, setActiveStore } = useAuth();
   const [form, setForm] = useState<StoreForm>(empty());
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
-    getMyStores(userId).then((list) => {
-      setStores(list);
-    }).catch(() => {});
+    getMyStores(userId).then(setStores).catch(() => {});
   }, [userId]);
 
   useEffect(() => {
@@ -36,6 +54,14 @@ export default function StoreEdit() {
     }
     setError(""); setMessage("");
   }, [activeStoreId, stores]);
+
+  const handleMapPick = (lat: number, lon: number) => {
+    setForm((f) => ({
+      ...f,
+      lat: lat.toFixed(6),
+      lon: lon.toFixed(6),
+    }));
+  };
 
   const payload = () => ({
     name: form.name,
@@ -78,6 +104,15 @@ export default function StoreEdit() {
     } catch { setError("登録に失敗しました"); }
   };
 
+  // マーカー位置（数値として有効な場合のみ）
+  const markerPos: [number, number] | null =
+    parseFloat(form.lat) && parseFloat(form.lon)
+      ? [parseFloat(form.lat), parseFloat(form.lon)]
+      : null;
+
+  // マップの中心（マーカーがあればそこ、なければ大阪公立大学周辺）
+  const mapCenter: [number, number] = markerPos ?? [34.5446, 135.5064];
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-700 mb-6">店舗情報編集</h1>
@@ -118,10 +153,57 @@ export default function StoreEdit() {
           </p>
           {f("店舗名", "name", { placeholder: "例：カフェ58" })}
           {f("住所", "address", { placeholder: "大阪市住吉区杉本3丁目..." })}
-          <div className="grid grid-cols-2 gap-4">
-            {f("緯度", "lat", { placeholder: "34.5446" })}
-            {f("経度", "lon", { placeholder: "135.5064" })}
+
+          {/* 緯度経度 + マップピッカー */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm text-gray-500">位置（緯度 / 経度）</label>
+              <button
+                type="button"
+                className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                onClick={() => setShowMap((v) => !v)}
+              >
+                {showMap ? "マップを閉じる" : "マップで選択する"}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                className="border border-gray-300 rounded-lg px-4 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition text-sm"
+                placeholder="緯度 例: 34.5446"
+                value={form.lat}
+                onChange={(e) => setForm({ ...form, lat: e.target.value })}
+              />
+              <input
+                className="border border-gray-300 rounded-lg px-4 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition text-sm"
+                placeholder="経度 例: 135.5064"
+                value={form.lon}
+                onChange={(e) => setForm({ ...form, lon: e.target.value })}
+              />
+            </div>
+
+            {/* インラインマップピッカー */}
+            {showMap && (
+              <div className="mt-3 rounded-xl overflow-hidden border border-gray-200" style={{ height: 280 }}>
+                <MapContainer
+                  key={`${mapCenter[0]}-${mapCenter[1]}`}
+                  center={mapCenter}
+                  zoom={15}
+                  style={{ height: "100%", width: "100%" }}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <MapPicker onPick={handleMapPick} />
+                  {markerPos && <Marker position={markerPos} />}
+                </MapContainer>
+                <p className="text-xs text-gray-400 text-center py-1 bg-gray-50">
+                  クリックした場所が緯度・経度に自動入力されます
+                </p>
+              </div>
+            )}
           </div>
+
           {f("収容人数", "capacity", { type: "number", placeholder: "50" })}
 
           {error && <p className="text-red-500 text-sm">{error}</p>}

@@ -102,16 +102,42 @@ export async function deleteProduct(productId: string) {
 
 export async function getCoupons(storeId: string) {
   const { data, error } = await supabase
-    .from("coupons").select("*").eq("store_id", storeId).order("created_at");
+    .from("coupons").select("*").eq("store", storeId).order("created_at");
   if (error) throw new Error(error.message);
   return data ?? [];
 }
 
 export async function createCoupon(payload: {
-  store_id: string; code: string; discount_rate: number; expires_at?: string | null;
+  store_id: string;
+  title: string;
+  description?: string | null;
+  expiry_date: string;            // YYYY-MM-DD
+  required_coins: number;
+  qr_code_url?: string | null;    // 未指定なら coupon_id から自動生成
 }) {
-  const { data, error } = await supabase.from("coupons").insert(payload).select().single();
+  // 1. まず挿入（qr_code_url は後で coupon_id ベースに更新する）
+  const { data, error } = await supabase
+    .from("coupons")
+    .insert({
+      store: payload.store_id,
+      title: payload.title,
+      description: payload.description ?? null,
+      expiry_date: payload.expiry_date,
+      required_coins: payload.required_coins,
+      qr_code_url: payload.qr_code_url || "pending",
+    })
+    .select()
+    .single();
   if (error) throw new Error(error.message);
+
+  // 2. QR 未指定なら coupon_id を埋め込んだ実 QR コード URL を生成して更新
+  if (!payload.qr_code_url) {
+    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${data.coupon_id}`;
+    const { data: updated, error: uErr } = await supabase
+      .from("coupons").update({ qr_code_url: qr }).eq("coupon_id", data.coupon_id).select().single();
+    if (uErr) throw new Error(uErr.message);
+    return updated;
+  }
   return data;
 }
 

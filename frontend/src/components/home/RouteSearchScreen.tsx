@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Header from './Header'
 import LocationInputCard from './LocationInputCard'
 import DestinationList from './DestinationList'
@@ -21,6 +22,7 @@ const defaultState: SearchFormState = {
 }
 
 export default function RouteSearchScreen() {
+  const router = useRouter()
   const [form, setForm] = useState<SearchFormState>(defaultState)
   const [timeSheetOpen, setTimeSheetOpen] = useState(false)
 
@@ -31,6 +33,7 @@ export default function RouteSearchScreen() {
   const handleSearch = () => {
     console.log('SearchFormState:', form)
     // future: call frontend/src/lib/api.ts -> searchRoute(form)
+    router.push('/route-result')
   }
 
   return (

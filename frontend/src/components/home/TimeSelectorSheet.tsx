@@ -12,7 +12,7 @@ export default function TimeSelectorSheet({ open, onClose, endTime, onChangeEndT
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end">
+    <div className="fixed inset-0 z-[1200] flex items-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       <div className="relative w-full max-w-md mx-auto rounded-t-3xl bg-white p-6 pb-8 shadow-2xl">

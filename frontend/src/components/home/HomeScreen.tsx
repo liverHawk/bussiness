@@ -1,10 +1,12 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import Header from './Header'
 import PrimaryRouteButton from './PrimaryRouteButton'
 import SearchBar from './SearchBar'
 import MapSection from './MapSection'
+import { SEARCH_SPOTS } from '@/lib/spots'
 
 /**
  * トップ画面（親画面）。
@@ -13,14 +15,15 @@ import MapSection from './MapSection'
  */
 export default function HomeScreen() {
   const router = useRouter()
+  const [showCongestion, setShowCongestion] = useState(false)
 
   const handleRouteSearchClick = () => {
     router.push('/route-search')
   }
 
   const handleSearchClick = () => {
-    // 将来: 地点検索 UI への遷移
-    console.log('open search')
+    // 検索すると周辺の飲食店・観光地の混雑状況をピンで可視化する
+    setShowCongestion((prev) => !prev)
   }
 
   const handleFilterClick = () => {
@@ -37,7 +40,7 @@ export default function HomeScreen() {
       </div>
 
       <div className="relative -mt-3 flex-1 overflow-hidden rounded-t-3xl shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
-        <MapSection />
+        <MapSection showCongestion={showCongestion} spots={SEARCH_SPOTS} />
       </div>
     </div>
   )

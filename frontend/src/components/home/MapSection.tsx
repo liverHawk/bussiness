@@ -1,20 +1,35 @@
-// React import not required with new JSX transform
+"use client"
+
+import dynamic from 'next/dynamic'
+import CongestionLegend from './CongestionLegend'
+import type { Spot } from '@/lib/spots'
+
+// Leaflet は window に依存するため SSR では動かない
+const LeafletMap = dynamic(() => import('./LeafletMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-gray-100 to-gray-50 text-center text-gray-400">
+      <p className="text-sm">地図を読み込み中...</p>
+    </div>
+  ),
+})
+
+type Props = {
+  showCongestion?: boolean
+  spots?: Spot[]
+}
 
 /**
  * 地図表示エリア。
  * 親要素の高さいっぱいに広がる前提のレイアウト（h-full / w-full）。
- * 将来的に react-leaflet (OpenStreetMap) のマップに置き換え、
- * ピン・ルート・混雑情報・現在地レイヤーなどをここに重ねる。
+ * OpenStreetMap (react-leaflet) を表示する。
+ * showCongestion が true のとき、渡された spots を混雑状況ピンと凡例で表示する。
  */
-export default function MapSection() {
+export default function MapSection({ showCongestion = false, spots = [] }: Props) {
   return (
-    <div className="relative h-full w-full bg-gradient-to-b from-gray-100 to-gray-50">
-      <div className="flex h-full w-full items-center justify-center text-center text-gray-400">
-        <div>
-          <p className="text-sm">地図表示エリア</p>
-          <p className="text-xs">OpenStreetMap (react-leaflet) をここに実装</p>
-        </div>
-      </div>
+    <div className="relative h-full w-full">
+      <LeafletMap showCongestion={showCongestion} spots={spots} />
+      {showCongestion && <CongestionLegend />}
     </div>
   )
 }

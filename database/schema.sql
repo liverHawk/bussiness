@@ -8,6 +8,25 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 
 -- ============================================================
+-- ⚠️ 再構築用: 既存テーブルを全削除する（データは消えます）
+-- 列構成を変更したため、CREATE TABLE IF NOT EXISTS だけでは
+-- 既存テーブルが更新されない。クリーンに作り直すために先に DROP する。
+-- 本番でデータを残したい場合はこのブロックを実行しないこと。
+-- ============================================================
+DROP TABLE IF EXISTS payments      CASCADE;
+DROP TABLE IF EXISTS coupon_usages CASCADE;
+DROP TABLE IF EXISTS coupons       CASCADE;
+DROP TABLE IF EXISTS reviews       CASCADE;
+DROP TABLE IF EXISTS route_points  CASCADE;
+DROP TABLE IF EXISTS routes        CASCADE;
+DROP TABLE IF EXISTS merchandise   CASCADE;
+DROP TABLE IF EXISTS store_tags    CASCADE;
+DROP TABLE IF EXISTS tags          CASCADE;
+DROP TABLE IF EXISTS stores        CASCADE;
+DROP TABLE IF EXISTS users         CASCADE;
+
+
+-- ============================================================
 -- users（ユーザー / 店舗オーナー共用）
 -- type = 'User' | 'Store' で種別を区別する
 -- ============================================================

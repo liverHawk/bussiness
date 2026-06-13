@@ -29,14 +29,29 @@ export async function logout() {
 
 // ── Store ─────────────────────────────────────────────────────────────────
 
-export async function getMyStore(userId: string) {
+export async function getMyStores(userId: string) {
   const { data, error } = await supabase
     .from("stores")
     .select("*")
     .eq("owner_id", userId)
-    .maybeSingle();
+    .order("created_at");
   if (error) throw new Error(error.message);
-  return data;
+  return data ?? [];
+}
+
+/** 後方互換 */
+export async function getMyStore(userId: string) {
+  const list = await getMyStores(userId);
+  return list[0] ?? null;
+}
+
+export async function getAllStores() {
+  const { data, error } = await supabase
+    .from("stores")
+    .select("id, name, address, lat, lon, capacity, crowd_level")
+    .order("name");
+  if (error) throw new Error(error.message);
+  return data ?? [];
 }
 
 export async function createStore(payload: {

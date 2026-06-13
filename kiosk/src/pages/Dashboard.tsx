@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { useAuth } from "../store/auth";
+import { getMyStores } from "../lib/api";
 
 function congestionColor(rate: number) {
   if (rate < 0.5) return "text-emerald-500";
@@ -15,12 +16,15 @@ function barColor(rate: number) {
 }
 
 export default function Dashboard() {
-  const { userName, storeName, storeId } = useAuth();
+  const { userName, storeName, userId, stores, setStores } = useAuth();
   const [count, setCount] = useState(0);
-  const [capacity, setCapacity] = useState(50);
+  const [capacity] = useState(50);
   const [esp32Connected, setEsp32Connected] = useState(false);
 
   useEffect(() => {
+    if (userId && stores.length === 0) {
+      getMyStores(userId).then(setStores).catch(() => {});
+    }
     invoke<boolean>("get_esp32_connected").then(setEsp32Connected);
     invoke<number>("get_esp32_count").then(setCount);
 

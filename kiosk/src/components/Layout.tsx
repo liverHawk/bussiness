@@ -3,16 +3,18 @@ import { useAuth } from "../store/auth";
 
 const NAV = [
   { to: "/dashboard",  label: "ダッシュボード" },
+  { to: "/map",        label: "マップ" },
   { to: "/congestion", label: "混雑モニター" },
-  { to: "/store",      label: "店舗情報編集" },
+  { to: "/store",      label: "店舗管理" },
   { to: "/products",   label: "商品管理" },
   { to: "/coupons",    label: "クーポン管理" },
   { to: "/payment",    label: "決済" },
 ];
 
 export default function Layout() {
-  const { userName, storeName, logout } = useAuth();
+  const { userName, stores, activeStoreId, setActiveStore, logout } = useAuth();
   const navigate = useNavigate();
+  const activeName = stores.find((s) => s.id === activeStoreId)?.name;
 
   const handleLogout = () => {
     logout();
@@ -27,6 +29,22 @@ export default function Layout() {
           <p className="text-white font-bold text-lg">58 in OMU</p>
           <p className="text-indigo-300 text-xs mt-0.5">店舗管理</p>
         </div>
+
+        {/* 店舗セレクター */}
+        {stores.length > 0 && (
+          <div className="px-3 py-3 border-b border-indigo-800">
+            <p className="text-indigo-400 text-xs mb-1 px-1">アクティブ店舗</p>
+            <select
+              className="w-full bg-indigo-900 text-white text-sm rounded-lg px-2 py-1.5 border border-indigo-700 focus:outline-none focus:border-indigo-400"
+              value={activeStoreId ?? ""}
+              onChange={(e) => setActiveStore(e.target.value)}
+            >
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <nav className="flex-1 py-3 space-y-0.5 px-2">
           {NAV.map(({ to, label }) => (
@@ -47,7 +65,7 @@ export default function Layout() {
 
         <div className="px-4 py-4 border-t border-indigo-800 text-xs text-indigo-300 space-y-1">
           <p className="truncate">{userName}</p>
-          {storeName && <p className="truncate text-indigo-400">{storeName}</p>}
+          {activeName && <p className="truncate text-indigo-400">{activeName}</p>}
           <button
             className="mt-2 text-red-400 hover:text-red-300 transition"
             onClick={handleLogout}

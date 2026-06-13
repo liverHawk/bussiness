@@ -10,6 +10,7 @@ import StoreEdit from "./pages/StoreEdit";
 import Products from "./pages/Products";
 import Coupons from "./pages/Coupons";
 import Payment from "./pages/Payment";
+import Map from "./pages/Map";
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const token = useAuth((s) => s.token);
@@ -27,6 +28,7 @@ export default function App() {
           element={<RequireAuth><Layout /></RequireAuth>}
         >
           <Route path="dashboard"  element={<Dashboard />} />
+          <Route path="map"        element={<Map />} />
           <Route path="congestion" element={<Congestion />} />
           <Route path="store"      element={<StoreEdit />} />
           <Route path="products"   element={<Products />} />

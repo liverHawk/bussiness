@@ -60,6 +60,22 @@ class SupabaseAuthService:
 
         raise SupabaseAuthError("INVALID_TOKEN", "認証に失敗しました", 401)
 
+    async def sign_out(self, access_token: str) -> None:
+        """ユーザーのアクセストークンを無効化（ログアウト）する。"""
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{self._base_url}/auth/v1/logout",
+                headers={
+                    "apikey": self._anon_key,
+                    "Authorization": f"Bearer {access_token}",
+                },
+            )
+        # 204 No Content が正常。401 でも「既に無効」とみなし黙殺する。
+        if response.status_code not in (200, 204, 401):
+            raise SupabaseAuthError(
+                "AUTH_ERROR", "ログアウト処理に失敗しました", response.status_code
+            )
+
     async def sign_up(self, email: str, password: str, name: str) -> SupabaseAuthResult:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(

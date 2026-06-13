@@ -9,7 +9,7 @@ app = FastAPI(title="58 in OMU API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.origins,
-    allow_credentials=True,
+    allow_credentials=settings.allow_credentials and settings.origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

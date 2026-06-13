@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>アカウント設定</title>
+    <link rel="stylesheet" href="account-setting.css" />
+</head>
+
+<body>
+    <main class="page">
+        <section class="card">
+            <button class="close-btn" aria-label="閉じる">✕</button>
+            <div class="avatar-wrap">
+                <div class="avatar">👤</div>
+                <button class="edit-profile">プロフィールを編集する</button>
+            </div>
+
+            <form class="profile-form">
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="last-name">ユーザー名</label>
+                        <input id="last-name" type="text" value="田中" />
+                    </div>
+                    <div class="field-group">
+                        <label for="first-name">&nbsp;</label>
+                        <input id="first-name" type="text" value="さとこ" />
+                    </div>
+                </div>
+
+                <div class="field-block">
+                    <label for="email">メールアドレス</label>
+                    <input id="email" type="email" value="example@example.com" />
+                </div>
+
+                <button type="button" class="password-reset">パスワード再設定</button>
+            </form>
+        </section>
+    </main>
+</body>
+
+</html>

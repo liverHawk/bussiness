@@ -148,7 +148,16 @@ export default function Congestion() {
               arduino-cli をセットアップ
             </button>
           ) : (
-            <span className="text-emerald-600 text-sm font-medium">✓ arduino-cli 準備完了</span>
+            <>
+              <span className="text-emerald-600 text-sm font-medium">✓ arduino-cli 準備完了</span>
+              <button
+                className="bg-slate-500 hover:bg-slate-600 text-white text-sm px-3 py-2 rounded-lg transition"
+                onClick={setupArduino}
+                title="ESP32 ボードパッケージの再インストール・更新"
+              >
+                ESP32コアを再インストール
+              </button>
+            </>
           )}
           <button
             className={`text-white text-sm px-4 py-2 rounded-lg transition ${

@@ -6,24 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>メニュー</title>
     <style>
-        body {
-            margin: 0;
-            font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
-            background: #f3e4d7;
-            color: #2b2b2b;
-        }
-
         html,
         body {
             margin: 0;
             padding: 0;
+            width: 100%;
             height: 100%;
             overflow: hidden;
             font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
             background: #f3e4d7;
             color: #2b2b2b;
+        }
+
+        body {
             display: flex;
-            justify-content: flex-start;
         }
 
         .drawer {
@@ -35,7 +31,28 @@
             box-shadow: 5px 0 30px rgba(0, 0, 0, 0.12);
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
+        }
+
+        .preview {
+            flex: 1;
+            background: #f3e4d7;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.75);
+            pointer-events: none;
+        }
+
+        .preview-frame {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
         }
 
         .close-btn {
@@ -50,7 +67,7 @@
             color: #444;
             font-size: 22px;
             cursor: pointer;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
         }
 
         .menu-list {
@@ -58,17 +75,14 @@
             padding: 0;
             margin: 16px 0 0;
             display: grid;
-            gap: 20px;
-            flex: 1;
-            grid-template-rows: repeat(6, minmax(0, 1fr));
+            gap: 16px;
         }
 
         .menu-item {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 12px;
-            height: 100%;
+            padding: 12px 14px;
             border-radius: 16px;
             text-decoration: none;
             color: #2b2b2b;
@@ -98,10 +112,29 @@
             border: none;
         }
 
-        .overlay {
+        .fallback-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            font-size: 18px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .preview {
             flex: 1;
-            background: rgba(0, 0, 0, 0.4);
-            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
         }
     </style>
 </head>
@@ -120,7 +153,25 @@
             </ul>
         </nav>
     </div>
-    <div class="overlay" onclick="window.history.back()"></div>
+    <div class="preview">
+        <iframe id="previewFrame" class="preview-frame" src="" title="元の画面"></iframe>
+        <div class="fallback-text" id="fallbackText">元の画面を読み込み中です...</div>
+    </div>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const src = params.get('src');
+        const frame = document.getElementById('previewFrame');
+        const fallback = document.getElementById('fallbackText');
+
+        if (src) {
+            frame.src = src;
+            frame.onload = () => {
+                fallback.style.display = 'none';
+            };
+        } else {
+            fallback.textContent = '元の画面情報がありません。メニューアイコンから開いてください。';
+        }
+    </script>
 </body>
 
 </html>

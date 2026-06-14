@@ -139,6 +139,29 @@ async def register(
             ).model_dump(),
         ) from exc
 
+    # メール確認待ちの場合はユーザーをDBに登録しないかもしれないので try/except で吸収する
+    if auth_result.email_confirmation_required or not auth_result.access_token:
+        # ユーザーIDが確定していない（ダミー UUID）場合は DB 登録をスキップ
+        try:
+            user = User(
+                user_id=auth_result.user_id,
+                type="User",
+                name=body.name,
+                e_mail=body.email,
+                pwd_hash=body.pwd_hash,
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+        except IntegrityError:
+            await db.rollback()
+        return AuthResponse(
+            accessToken=None,
+            requiresEmailConfirmation=True,
+            message=_register_confirmation_message(),
+            user=UserResponse(id="", name=body.name, email=body.email),
+        )
+
     user = User(
         user_id=auth_result.user_id,
         type="User",
@@ -161,14 +184,6 @@ async def register(
                 )
             ).model_dump(),
         ) from exc
-
-    if auth_result.email_confirmation_required or not auth_result.access_token:
-        return AuthResponse(
-            accessToken=None,
-            requiresEmailConfirmation=True,
-            message=_register_confirmation_message(),
-            user=_user_response(user),
-        )
 
     return AuthResponse(
         accessToken=auth_result.access_token,

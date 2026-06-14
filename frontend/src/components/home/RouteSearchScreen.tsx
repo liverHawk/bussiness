@@ -19,7 +19,7 @@ export type SearchFormState = {
 
 const defaultState: SearchFormState = {
   departure: '',
-  destinations: [{ address: '', genres: [] }],
+  destinations: [{ storeId: '', storeName: '', lat: 0, lng: 0, genres: [] }],
   endTime: new Date().toTimeString().slice(0, 5),
 }
 
@@ -41,19 +41,21 @@ export default function RouteSearchScreen() {
       const today = new Date().toISOString().slice(0, 10)
       const specifiedDateTime = new Date(`${today}T${form.endTime}:00`).toISOString()
 
-      const filledDests = form.destinations.filter((d) => d.address.trim() !== '')
+      const filledDests = form.destinations.filter((d) => d.storeId !== '')
+      if (filledDests.length === 0) {
+        setError('目的地を1つ以上選択してください')
+        setLoading(false)
+        return
+      }
 
-      const [startGeo, ...destGeos] = await Promise.all([
-        geocodeAddress(form.departure || '大阪駅'),
-        ...filledDests.map((d) => geocodeAddress(d.address)),
-      ])
+      const startGeo = await geocodeAddress(form.departure || '天王寺駅')
 
       const result = await generateRoute({
         startLocation: { latitude: startGeo.latitude, longitude: startGeo.longitude },
-        destinations: destGeos.map((g, i) => ({
-          latitude: g.latitude,
-          longitude: g.longitude,
-          preferredGenres: filledDests[i].genres,
+        destinations: filledDests.map((d) => ({
+          latitude: d.lat,
+          longitude: d.lng,
+          preferredGenres: d.genres,
         })),
         specifiedDateTime,
         timeType: 'departure',

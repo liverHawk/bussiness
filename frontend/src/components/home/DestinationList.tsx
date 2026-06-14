@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { GENRES } from '@/lib/genres'
+import { searchSpots, type Spot } from '@/lib/api'
 
 export type DestinationItem = {
-  address: string
+  storeId: string
+  storeName: string
+  lat: number
+  lng: number
   genres: string[]
 }
 
@@ -12,10 +16,27 @@ type Props = {
 }
 
 export default function DestinationList({ destinations, setDestinations }: Props) {
+  const [stores, setStores] = useState<Spot[]>([])
   const [openGenreIdx, setOpenGenreIdx] = useState<number | null>(null)
 
-  const updateAddress = (idx: number, address: string) => {
-    const copy = destinations.map((d, i) => i === idx ? { ...d, address } : d)
+  useEffect(() => {
+    searchSpots({ congestion: [], genres: [], reviews: [] })
+      .then(setStores)
+      .catch(() => {})
+  }, [])
+
+  const updateStore = (idx: number, spot: Spot | null) => {
+    const copy = destinations.map((d, i) =>
+      i === idx
+        ? {
+            ...d,
+            storeId: spot?.spotId ?? '',
+            storeName: spot?.name ?? '',
+            lat: spot?.latitude ?? 0,
+            lng: spot?.longitude ?? 0,
+          }
+        : d
+    )
     setDestinations(copy)
   }
 
@@ -30,25 +51,37 @@ export default function DestinationList({ destinations, setDestinations }: Props
     setDestinations(copy)
   }
 
-  const add = () => setDestinations([...destinations, { address: '', genres: [] }])
+  const add = () =>
+    setDestinations([...destinations, { storeId: '', storeName: '', lat: 0, lng: 0, genres: [] }])
   const remove = (idx: number) => setDestinations(destinations.filter((_, i) => i !== idx))
 
   return (
     <div className="space-y-3">
       {destinations.map((d, i) => (
         <div key={i} className="bg-white rounded-2xl shadow-sm p-4 space-y-2">
-          {/* 目的地入力行 */}
+          {/* 目的地選択行 */}
           <div className="flex items-center gap-3">
             <div className="flex-none">
-              <span className="inline-block bg-[#d3883f] text-white px-4 py-2 rounded-full text-sm">目的地</span>
+              <span className="inline-block bg-[#d3883f] text-white px-4 py-2 rounded-full text-sm">
+                目的地
+              </span>
             </div>
             <div className="flex-1">
-              <input
-                className="w-full bg-transparent outline-none text-sm"
-                value={d.address}
-                placeholder="目的地を入力"
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateAddress(i, e.target.value)}
-              />
+              <select
+                className="w-full bg-transparent outline-none text-sm text-gray-700 cursor-pointer"
+                value={d.storeId}
+                onChange={(e) => {
+                  const selected = stores.find((s) => s.spotId === e.target.value) ?? null
+                  updateStore(i, selected)
+                }}
+              >
+                <option value="">スポットを選択</option>
+                {stores.map((s) => (
+                  <option key={s.spotId} value={s.spotId}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex-none flex items-center gap-1">
               <button
@@ -60,7 +93,12 @@ export default function DestinationList({ destinations, setDestinations }: Props
                 {d.genres.length > 0 ? `ジャンル(${d.genres.length})` : 'ジャンル'}
               </button>
               {i > 0 && (
-                <button onClick={() => remove(i)} className="text-gray-400 px-2 transition active:scale-90">✕</button>
+                <button
+                  onClick={() => remove(i)}
+                  className="text-gray-400 px-2 transition active:scale-90"
+                >
+                  ✕
+                </button>
               )}
             </div>
           </div>

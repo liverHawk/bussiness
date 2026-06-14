@@ -125,6 +125,16 @@ export default function SpotReviewsPage(): React.JSX.Element {
           ))}
         </div>
 
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => router.push(`/spots/${spotId}/reviews/new`)}
+            className="w-full bg-[#d3883f] text-white rounded-full py-3 text-sm font-semibold shadow-md hover:bg-[#c2792f] transition"
+          >
+            ＋ レビューを書く
+          </button>
+        </div>
+
         <ul className="mt-4 space-y-1">
           {reviews.map((review) => (
             <li key={review.reviewId} className="py-3 border-b border-gray-200">

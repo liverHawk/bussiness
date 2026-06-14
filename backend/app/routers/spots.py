@@ -247,6 +247,48 @@ async def get_spot(
     )
 
 
+class ReviewPostRequest(BaseModel):
+    rating: float
+    content: str
+    photoUrl: str | None = None
+
+
+class ReviewPostResponse(BaseModel):
+    reviewId: str
+    message: str
+
+
+@router.post("/{spot_id}/reviews", response_model=ReviewPostResponse, status_code=201)
+async def post_spot_review(
+    spot_id: str,
+    body: ReviewPostRequest,
+    current_user: SupabaseAuthResult = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ReviewPostResponse:
+    """指定スポットにレビューを投稿する。"""
+    import uuid as _uuid
+
+    store_result = await db.execute(select(Store.store_id).where(Store.store_id == spot_id))
+    if store_result.first() is None:
+        raise HTTPException(status_code=404, detail="スポットが見つかりません")
+
+    new_review = Review(
+        review_id=_uuid.uuid4(),
+        store=spot_id,
+        post_user=current_user.user_id,
+        rating=max(0.0, min(5.0, body.rating)),
+        content=body.content,
+        photo_url=body.photoUrl,
+    )
+    db.add(new_review)
+    await db.commit()
+
+    return ReviewPostResponse(
+        reviewId=str(new_review.review_id),
+        message="レビューを投稿しました",
+    )
+
+
 @router.get("/{spot_id}/reviews", response_model=SpotReviewsResponse)
 async def get_spot_reviews(
     spot_id: str,

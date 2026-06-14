@@ -27,8 +27,7 @@ export default function HomeScreen() {
   }
 
   const handleFilterClick = () => {
-    // 将来: 検索条件(フィルター)画面への遷移
-    console.log('open filter')
+    router.push('/search/filter')
   }
 
   return (

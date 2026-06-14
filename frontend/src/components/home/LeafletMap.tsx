@@ -74,6 +74,12 @@ export default function LeafletMap({ showCongestion = false, spots = [] }: Props
                 <p className="font-semibold">{spot.name}</p>
                 <p className="text-gray-500">{CATEGORY_LABEL[spot.category]}</p>
                 <p className="mt-1">混雑状況: {getCongestionLabel(spot.congestion)}</p>
+                <a
+                  href={`/spots/${spot.id}/reviews`}
+                  className="mt-2 block text-center bg-orange-400 text-white text-xs font-semibold rounded-full px-3 py-1 hover:bg-orange-500"
+                >
+                  レビューを見る
+                </a>
               </div>
             </Popup>
           </Marker>

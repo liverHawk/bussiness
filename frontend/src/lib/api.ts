@@ -232,6 +232,50 @@ export async function listRoutes(): Promise<SavedRoute[]> {
   return data.savedRoutes;
 }
 
+// ---- レビュー投稿 ----
+
+export interface ReviewPostRequest {
+  rating: number;
+  content: string;
+  photoUrl?: string;
+}
+
+export async function postReview(
+  spotId: string,
+  body: ReviewPostRequest
+): Promise<{ reviewId: string; message: string }> {
+  const res = await fetch(`${API_URL}/spots/${spotId}/reviews`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.detail ?? "レビューの投稿に失敗しました");
+  }
+  return res.json();
+}
+
+// ---- レビュースポット一覧 ----
+
+export interface ReviewSpot {
+  spotId: string;
+  name: string;
+  imageUrl: string | null;
+  reviewRating: number;
+  totalReviews: number;
+  totalPhotos: number;
+}
+
+export async function listReviewSpots(): Promise<ReviewSpot[]> {
+  const res = await fetch(`${API_URL}/reviews/spots`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("レビュー一覧の取得に失敗しました");
+  const data: { reviewSpots: ReviewSpot[] } = await res.json();
+  return data.reviewSpots;
+}
+
 // ---- クーポン ----
 
 export type CouponItem = {

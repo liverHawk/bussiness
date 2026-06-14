@@ -2,6 +2,7 @@ import ssl
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 from app.config import settings
 
@@ -23,18 +24,28 @@ def _connect_args() -> dict:
         or "sslmode=require" in url
     ):
         args["ssl"] = ssl.create_default_context()
-    # Supabase Transaction pooler は prepared statement 非対応
+    # Supabase Pooler は prepared statement 非対応（asyncpg の statement_cache_size のみ有効）
     if "pooler.supabase.com" in url:
         args["statement_cache_size"] = 0
-        args["prepared_statement_cache_size"] = 0
     return args
+
+
+def _engine_kwargs() -> dict:
+    url = _normalize_database_url(settings.database_url)
+    kwargs: dict = {
+        "echo": False,
+        "connect_args": _connect_args(),
+        "pool_pre_ping": True,
+    }
+    # Supabase Pooler 側でプールするため、アプリ側は NullPool を使う
+    if "pooler.supabase.com" in url:
+        kwargs["poolclass"] = NullPool
+    return kwargs
 
 
 engine = create_async_engine(
     _normalize_database_url(settings.database_url),
-    echo=False,
-    connect_args=_connect_args(),
-    pool_pre_ping=True,
+    **_engine_kwargs(),
 )
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 

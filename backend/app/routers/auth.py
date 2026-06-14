@@ -151,17 +151,24 @@ async def register(
     db: AsyncSession = Depends(get_db),
     auth_service: SupabaseAuthService = Depends(get_supabase_auth_service),
 ) -> AuthResponse:
-    existing = await db.execute(select(User).where(User.e_mail == body.email))
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=409,
-            detail=ErrorResponse(
-                error=ErrorBody(
-                    code="EMAIL_ALREADY_EXISTS",
-                    message="このメールアドレスは既に登録されています",
-                )
-            ).model_dump(),
-        )
+    # DB が使えない場合は重複チェックをスキップ（Supabase Auth 側が弾く）
+    try:
+        existing = await db.execute(select(User).where(User.e_mail == body.email))
+        if existing.scalar_one_or_none() is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=ErrorResponse(
+                    error=ErrorBody(
+                        code="EMAIL_ALREADY_EXISTS",
+                        message="このメールアドレスは既に登録されています",
+                    )
+                ).model_dump(),
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        if not _is_database_error(exc):
+            raise
 
     try:
         auth_result = await auth_service.sign_up(
@@ -182,9 +189,8 @@ async def register(
             ).model_dump(),
         ) from exc
 
-    # メール確認待ちの場合はユーザーをDBに登録しないかもしれないので try/except で吸収する
+    # メール確認待ち
     if auth_result.email_confirmation_required or not auth_result.access_token:
-        # ユーザーIDが確定していない（ダミー UUID）場合は DB 登録をスキップ
         try:
             user = User(
                 user_id=auth_result.user_id,
@@ -196,7 +202,7 @@ async def register(
             db.add(user)
             await db.commit()
             await db.refresh(user)
-        except IntegrityError:
+        except Exception:
             await db.rollback()
         return AuthResponse(
             accessToken=None,
@@ -205,29 +211,46 @@ async def register(
             user=UserResponse(id="", name=body.name, email=body.email),
         )
 
-    user = User(
-        user_id=auth_result.user_id,
-        type="User",
-        name=body.name,
-        e_mail=body.email,
-        pwd_hash=store_pwd_hash(body.pwd_hash),
-    )
-    db.add(user)
+    # DB にユーザーを保存（失敗してもトークンは返す）
     try:
+        user = User(
+            user_id=auth_result.user_id,
+            type="User",
+            name=body.name,
+            e_mail=body.email,
+            pwd_hash=store_pwd_hash(body.pwd_hash),
+        )
+        db.add(user)
         await db.commit()
         await db.refresh(user)
+        user_resp = _user_response(user)
     except IntegrityError:
         await db.rollback()
-        user = await ensure_user_record(
-            db,
-            auth_result,
-            pwd_hash=body.pwd_hash,
-        )
-        user.name = body.name
-        await db.commit()
-        await db.refresh(user)
+        try:
+            user = await ensure_user_record(db, auth_result, pwd_hash=body.pwd_hash)
+            user.name = body.name
+            await db.commit()
+            await db.refresh(user)
+            user_resp = _user_response(user)
+        except Exception:
+            await db.rollback()
+            user_resp = UserResponse(
+                id=str(auth_result.user_id),
+                name=body.name,
+                email=body.email,
+            )
+    except Exception as exc:
+        await db.rollback()
+        if _is_database_error(exc):
+            user_resp = UserResponse(
+                id=str(auth_result.user_id),
+                name=body.name,
+                email=body.email,
+            )
+        else:
+            raise
 
     return AuthResponse(
         accessToken=auth_result.access_token,
-        user=_user_response(user),
+        user=user_resp,
     )

@@ -100,71 +100,84 @@ async def search_spots(
     _user: SupabaseAuthResult = Depends(get_current_user),
 ) -> SpotSearchResponse:
     """フィルター条件に合うスポット（店舗）一覧を取得する。"""
+    import logging
+    logger = logging.getLogger("uvicorn.error")
 
-    # 店舗ごとの平均レビュー（レビュー無しは 0.0）
-    avg_rating = (
-        select(func.coalesce(func.avg(Review.rating), 0.0))
-        .where(Review.store == Store.store_id)
-        .scalar_subquery()
-    )
-    # 店舗の代表カテゴリ（タグ名を 1 件）
-    category = (
-        select(Tag.name)
-        .join(StoreTag, StoreTag.tag == Tag.tag_id)
-        .where(StoreTag.store == Store.store_id)
-        .order_by(Tag.name)
-        .limit(1)
-        .scalar_subquery()
-    )
-
-    stmt = select(
-        Store.store_id,
-        Store.name,
-        Store.lat,
-        Store.lon,
-        Store.crowrd_level,
-        category.label("category"),
-        avg_rating.label("avg_rating"),
-    )
-
-    congestion_cond = _congestion_filter(Store.crowrd_level, congestion)
-    if congestion_cond is not None:
-        stmt = stmt.where(congestion_cond)
-
-    if genre:
-        names = [GENRE_TAG_NAMES[g] for g in genre if g in GENRE_TAG_NAMES]
-        if names:
-            genre_exists = (
-                select(1)
-                .select_from(StoreTag)
-                .join(Tag, StoreTag.tag == Tag.tag_id)
-                .where(StoreTag.store == Store.store_id, Tag.name.in_(names))
-                .exists()
-            )
-            stmt = stmt.where(genre_exists)
-        else:
-            return SpotSearchResponse(spots=[])
-
-    review_cond = _review_filter(avg_rating, review)
-    if review_cond is not None:
-        stmt = stmt.where(review_cond)
-
-    result = await db.execute(stmt)
-    rows = result.all()
-
-    spots = [
-        SpotResponse(
-            spotId=str(row.store_id),
-            name=row.name,
-            category=row.category or "",
-            latitude=row.lat if row.lat is not None else 0.0,
-            longitude=row.lon if row.lon is not None else 0.0,
-            congestionStatus=_congestion_label(row.crowrd_level),
-            reviewRating=round(float(row.avg_rating), 1),
+    try:
+        # 店舗ごとの平均レビュー（レビュー無しは 0.0）
+        avg_rating = (
+            select(func.coalesce(func.avg(Review.rating), 0.0))
+            .where(Review.store == Store.store_id)
+            .correlate(Store)
+            .scalar_subquery()
         )
-        for row in rows
-    ]
-    return SpotSearchResponse(spots=spots)
+        # 店舗の代表カテゴリ（タグ名を 1 件）
+        category = (
+            select(Tag.name)
+            .join(StoreTag, StoreTag.tag == Tag.tag_id)
+            .where(StoreTag.store == Store.store_id)
+            .correlate(Store)
+            .order_by(Tag.name)
+            .limit(1)
+            .scalar_subquery()
+        )
+
+        stmt = select(
+            Store.store_id,
+            Store.name,
+            Store.lat,
+            Store.lon,
+            Store.crowrd_level,
+            category.label("category"),
+            avg_rating.label("avg_rating"),
+        )
+
+        congestion_cond = _congestion_filter(Store.crowrd_level, congestion)
+        if congestion_cond is not None:
+            stmt = stmt.where(congestion_cond)
+
+        if genre:
+            names = [GENRE_TAG_NAMES[g] for g in genre if g in GENRE_TAG_NAMES]
+            if names:
+                genre_exists = (
+                    select(1)
+                    .select_from(StoreTag)
+                    .join(Tag, StoreTag.tag == Tag.tag_id)
+                    .where(StoreTag.store == Store.store_id, Tag.name.in_(names))
+                    .correlate(Store)
+                    .exists()
+                )
+                stmt = stmt.where(genre_exists)
+            else:
+                return SpotSearchResponse(spots=[])
+
+        if review:
+            review_cond = _review_filter(avg_rating, review)
+            if review_cond is not None:
+                stmt = stmt.where(review_cond)
+
+        result = await db.execute(stmt)
+        rows = result.all()
+
+        spots = [
+            SpotResponse(
+                spotId=str(row.store_id),
+                name=row.name,
+                category=row.category or "",
+                latitude=float(row.lat) if row.lat is not None else 0.0,
+                longitude=float(row.lon) if row.lon is not None else 0.0,
+                congestionStatus=_congestion_label(
+                    float(row.crowrd_level) if row.crowrd_level is not None else None
+                ),
+                reviewRating=round(float(row.avg_rating) if row.avg_rating is not None else 0.0, 1),
+            )
+            for row in rows
+        ]
+        return SpotSearchResponse(spots=spots)
+
+    except Exception as exc:
+        logger.exception("search_spots error: %s", exc)
+        raise
 
 
 @router.get("/geocode", response_model=GeocodeResult)

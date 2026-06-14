@@ -35,7 +35,7 @@ export default function PrimaryRouteButton({ onClick }: Props) {
         <path d="M20 20 15 4" />
         <path d="M12 4v16" strokeDasharray="2 3" />
       </svg>
-      <span className="text-base font-semibold">ルート検索</span>
+      <span className="text-base font-semibold">AIルート検索</span>
     </button>
   )
 }

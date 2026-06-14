@@ -13,7 +13,7 @@ type Props = {
 
 const NAV_ITEMS = [
   { href: '/',              label: 'ホーム',         emoji: '🏠' },
-  { href: '/route-search',  label: 'ルート検索',     emoji: '🗺️' },
+  { href: '/route-search',  label: 'AIルート検索',   emoji: '🤖' },
   { href: '/buymegucoins',  label: 'コイン購入',     emoji: '🪙' },
   { href: '/coupons',       label: 'マイクーポン',   emoji: '🎟️' },
   { href: '/search/filter', label: 'スポット検索',   emoji: '🔍' },

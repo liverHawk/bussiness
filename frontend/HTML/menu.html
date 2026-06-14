@@ -116,6 +116,7 @@
             font-size: 20px;
         }
 
+<<<<<<< HEAD
         .menu-item-toggle {
             display: flex;
             align-items: center;
@@ -170,6 +171,8 @@
             transform: translateX(1px);
         }
 
+=======
+>>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
         .separator {
             height: 1px;
             background: #e2d8d0;
@@ -202,6 +205,7 @@
             <ul class="menu-list">
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">🏠</span>ホーム</a></li>
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">🔖</span>セーブ</a></li>
+<<<<<<< HEAD
                 <li>
                     <button class="menu-item-toggle" type="button" id="coinToggle" aria-expanded="false"
                         aria-controls="coinSubmenu">
@@ -213,6 +217,9 @@
                         <li><button class="submenu-item" type="button">マイクーポン</button></li>
                     </ul>
                 </li>
+=======
+                <li><a class="menu-item" href="#"><span class="menu-item-icon">🪙</span>〇〇コイン</a></li>
+>>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">💬</span>レビュー・フォト</a></li>
                 <li><a class="menu-item" href="HTML/CSS/setting.html"><span class="menu-item-icon">⚙️</span>設定</a></li>
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">↩️</span>ログアウト</a></li>
@@ -224,8 +231,11 @@
         const src = params.get('src');
         const frame = document.getElementById('previewFrame');
         const fallback = document.getElementById('fallbackText');
+<<<<<<< HEAD
         const toggleButton = document.getElementById('coinToggle');
         const submenu = document.getElementById('coinSubmenu');
+=======
+>>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
 
         if (src) {
             frame.src = src;
@@ -235,6 +245,7 @@
         } else {
             fallback.textContent = '元の画面情報がありません。メニューアイコンから開いてください。';
         }
+<<<<<<< HEAD
 
         if (toggleButton && submenu) {
             toggleButton.addEventListener('click', () => {
@@ -243,6 +254,8 @@
                 submenu.classList.toggle('show');
             });
         }
+=======
+>>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
     </script>
 </body>
 

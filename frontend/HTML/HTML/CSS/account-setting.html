@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>アカウント設定</title>
+    <link rel="stylesheet" href="account-setting.css" />
+</head>
+
+<body>
+    <main class="page">
+        <section class="card">
+            <button class="close-btn" aria-label="閉じる">✕</button>
+            <div class="avatar-wrap">
+                <div class="avatar">
+                    <img class="avatar-img"
+                        src="https://cdn.discordapp.com/attachments/1508778554534395924/1515233618715344948/2026-06-13_14.57.01.png?ex=6a2e42c6&is=6a2cf146&hm=8535b4c7689c43b002b44bf60e2c6c0255cfac5d186345cdd8a076e0cc669dd8&"
+                        alt="avatar">
+                </div>
+                <button class="edit-profile">プロフィールを編集する</button>
+            </div>
+
+            <form class="profile-form">
+                <div class="field-row">
+                    <div class="field-group">
+                        <label for="last-name">ユーザー名</label>
+                        <input id="last-name" type="text" value="" disabled />
+                    </div>
+                    <div class="field-group">
+                        <label for="first-name">&nbsp;</label>
+                        <input id="first-name" type="text" value="" disabled />
+                    </div>
+                </div>
+
+                <div class="field-block">
+                    <label for="email">メールアドレス</label>
+                    <input id="email" type="email" value="" disabled />
+                </div>
+
+                <button type="button" class="password-reset">パスワード再設定</button>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            const editBtn = document.querySelector('.edit-profile');
+            const inputs = document.querySelectorAll('.profile-form input');
+            const passwordBtn = document.querySelector('.password-reset');
+
+            editBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                const isEditing = !inputs[0].disabled;
+                inputs.forEach(input => {
+                    input.disabled = isEditing;
+                });
+                editBtn.textContent = isEditing ? 'プロフィールを編集する' : '編集完了';
+                passwordBtn.disabled = isEditing;
+            });
+        })();
+    </script>
+</body>
+
+</html>

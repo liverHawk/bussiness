@@ -213,6 +213,19 @@ export async function fetchItems(): Promise<Item[]> {
 
 ---
 
+## 地図・ルート検索（OpenStreetMap）
+
+詳細仕様は [docs/map.md](docs/map.md) を参照。**必ず読んでから実装すること。**
+
+- 地図表示は **Leaflet + react-leaflet**、タイルは OSM 標準タイル（帰属表示必須）
+- 地図コンポーネントは `"use client"` + `dynamic import { ssr: false }` が必須（Leaflet は SSR 不可）
+- ジオコーディングは **Nominatim**、経路計算は **OSRM**
+- フロントから Nominatim / OSRM を直接呼ばない。**必ず backend（FastAPI）を経由**する
+- Nominatim は 1req/秒制限あり。結果はキャッシュする
+- Google Maps の API・タイルは使わない
+
+---
+
 ## コーディング規約
 
 ### Backend

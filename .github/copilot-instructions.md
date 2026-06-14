@@ -80,6 +80,14 @@ export async function fetchItems(): Promise<Item[]> {
 }
 ```
 
+## 地図・ルート検索（OpenStreetMap）
+
+- 詳細仕様: `docs/map.md`（必読）
+- 地図表示: Leaflet + react-leaflet、OSM 標準タイル（帰属表示必須）
+- 地図コンポーネントは `"use client"` + `dynamic import { ssr: false }` 必須
+- ジオコーディング: Nominatim / 経路計算: OSRM — **フロントから直接呼ばず必ず backend 経由**
+- Google Maps の API・タイルは使わない
+
 ## 環境変数
 
 - Backend: `DATABASE_URL`, `ALLOWED_ORIGINS`

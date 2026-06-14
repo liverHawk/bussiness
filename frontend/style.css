@@ -1,10 +1,3 @@
-/* すべての要素を border-box にする（はみ出し防止の基本） */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
 /* ================================
    基本設定 & テーマカラー
 ================================ */
@@ -50,7 +43,7 @@ body {
    コンテナ
 ================================ */
 .container {
-  width: auto;
+  width: 100%;
   max-width: 360px;
   margin: 40px auto;
   background: var(--white);
@@ -179,7 +172,7 @@ body {
   }
 
   .container {
-    width: auto;
+    width: 100%;
     max-width: 100%;
     margin: 20px auto;
     padding: 20px 12px;
@@ -228,17 +221,4 @@ body {
     margin-top: calc(20px + var(--safe-top));
     margin-bottom: calc(20px + var(--safe-bottom));
   }
-<<<<<<< HEAD
-=======
-}
-
-/* user icon image styling */
-.user-icon-img,
-.user-icon img {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  display: block;
->>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
 }

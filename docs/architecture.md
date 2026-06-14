@@ -51,6 +51,7 @@ docker-compose up
 | **uv** | Rust で書かれた超高速 Python パッケージマネージャ |
 | **Tailwind CSS 4** | ユーティリティファースト・設定不要で即使える |
 | **Supabase** | PostgreSQL 互換・RLS・認証・ストレージが統合・無料枠あり |
+| **OpenStreetMap + Leaflet** | 地図表示・ルート検索を API キー不要・無料で実現（詳細: [map.md](map.md)） |
 | **XServer VPS** | フロント・バックを同一サーバーで運用でき、コストを抑えられる |
 | **Docker** | ローカルと本番の環境差を最小化・再現性が高い |
 | **GitHub Actions** | push トリガーで CI/CD を自動化 |

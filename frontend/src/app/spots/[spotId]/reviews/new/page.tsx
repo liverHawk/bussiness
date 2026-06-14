@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { postReview } from "@/lib/api";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function PostReviewPage(): React.JSX.Element {
   const params = useParams<{ spotId: string }>();
@@ -32,6 +33,7 @@ export default function PostReviewPage(): React.JSX.Element {
   };
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#f2f0ed]">
       <header className="sticky top-0 z-40 bg-[#ece8e1]">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
@@ -99,5 +101,6 @@ export default function PostReviewPage(): React.JSX.Element {
         </form>
       </main>
     </div>
+    </AuthGuard>
   );
 }

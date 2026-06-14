@@ -164,13 +164,57 @@ class SupabaseAuthService:
         )
 
     async def sign_in(self, email: str, password: str) -> SupabaseAuthResult:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{self._base_url}/auth/v1/token?grant_type=password",
-                headers=self._headers,
-                json={"email": email, "password": password},
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self._base_url}/auth/v1/token?grant_type=password",
+                    headers=self._headers,
+                    json={"email": email, "password": password},
+                )
+        except httpx.RequestError as exc:
+            raise SupabaseAuthError(
+                "AUTH_UNAVAILABLE",
+                "認証サーバーに接続できません。SUPABASE_URL を確認してください。",
+                503,
+            ) from exc
+
+        if response.status_code != 200:
+            return self._parse_auth_response(response, email=email)
+
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise SupabaseAuthError(
+                "AUTH_ERROR",
+                "認証サーバーから不正な応答が返されました",
+                502,
+            ) from exc
+
+        user, token = self._extract_user_and_token(data)
+        if not token:
+            raise SupabaseAuthError(
+                "AUTH_ERROR",
+                "認証トークンを取得できませんでした",
+                500,
             )
-        return self._parse_auth_response(response, email=email)
+
+        # 一部の Supabase 応答では user が空 → トークンでプロフィール取得
+        if not user.get("id"):
+            profile = await self.get_user(token)
+            return SupabaseAuthResult(
+                access_token=token,
+                user_id=profile.user_id,
+                email=profile.email or email,
+                name=profile.name or email.split("@")[0],
+            )
+
+        metadata = user.get("user_metadata") or {}
+        return SupabaseAuthResult(
+            access_token=token,
+            user_id=uuid.UUID(user["id"]),
+            email=user.get("email") or email,
+            name=metadata.get("name") or email.split("@")[0],
+        )
 
     def _parse_auth_response(
         self,

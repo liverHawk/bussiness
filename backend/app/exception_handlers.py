@@ -72,3 +72,21 @@ async def http_exception_handler(_request: Request, exc: Exception) -> JSONRespo
             )
         ).model_dump(),
     )
+
+
+async def generic_exception_handler(
+    _request: Request, exc: Exception
+) -> JSONResponse:
+    """未処理例外を JSON エラーに変換（500 の原因特定を容易にする）。"""
+    import logging
+
+    logging.getLogger("uvicorn.error").exception("Unhandled exception: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content=ErrorResponse(
+            error=ErrorBody(
+                code="INTERNAL_ERROR",
+                message="サーバー内部エラーが発生しました。管理者に連絡してください。",
+            )
+        ).model_dump(),
+    )

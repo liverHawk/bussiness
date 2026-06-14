@@ -27,7 +27,8 @@ async def fetch_route(waypoints: list[tuple[float, float]]) -> dict:
     coords = ";".join(_coord(lat, lon) for lat, lon in waypoints)
     url = f"{OSRM_BASE}/route/v1/foot/{coords}"
     params = {
-        "overview": "false",
+        "overview": "simplified",
+        "geometries": "geojson",
         "steps": "false",
         "annotations": "false",
     }

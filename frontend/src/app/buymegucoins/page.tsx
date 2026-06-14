@@ -1,13 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { purchaseCoins, type CoinPurchaseResponse } from "@/lib/api";
-
-// アカウント情報はモック（取得 API 連携は別途）
-const MOCK_ACCOUNT = {
-  name: "アカウント名○○○",
-  coins: 1200,
-};
+import React, { useState, useEffect } from "react";
+import { purchaseCoins, getMe, type CoinPurchaseResponse } from "@/lib/api";
 
 interface CoinPlan {
   coinAmount: number;
@@ -24,6 +18,19 @@ const COIN_PLANS: CoinPlan[] = [
 export default function BuyMeguCoinsPage(): React.JSX.Element {
   const [processing, setProcessing] = useState<number | null>(null);
   const [mockResult, setMockResult] = useState<CoinPurchaseResponse | null>(null);
+  const [userName, setUserName] = useState("—");
+  const [coins, setCoins] = useState(0);
+
+  useEffect(() => {
+    getMe()
+      .then((me) => { setUserName(me.username); setCoins(me.currentTotalCoins); })
+      .catch(() => {
+        try {
+          const raw = localStorage.getItem("currentUser");
+          if (raw) { const u = JSON.parse(raw); setUserName(u.name ?? "—"); }
+        } catch { /* ignore */ }
+      });
+  }, []);
 
   const handlePurchase = async (plan: CoinPlan): Promise<void> => {
     setProcessing(plan.coinAmount);
@@ -63,13 +70,13 @@ export default function BuyMeguCoinsPage(): React.JSX.Element {
         {/* Account badge */}
         <div className="flex justify-center mt-2">
           <span className="bg-orange-400 text-white text-sm font-semibold px-6 py-1.5 rounded-full shadow-sm">
-            {MOCK_ACCOUNT.name}
+            {userName}
           </span>
         </div>
 
         {/* Current coins */}
         <p className="text-center text-lg text-gray-800 mt-4">
-          現在の所持コイン：{MOCK_ACCOUNT.coins.toLocaleString()}コイン
+          現在の所持コイン：{coins.toLocaleString()}コイン
         </p>
 
         {/* Heading */}

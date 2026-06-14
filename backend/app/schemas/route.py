@@ -38,6 +38,7 @@ class RouteGenerateResponse(BaseModel):
     totalDuration: int    # 分
     totalDistance: float  # km
     timeline: list[TimelineEntry]
+    path: list[list[float]]  # [[lat, lon], ...] ルートのジオメトリ
 
 
 class DaySummaryEntry(BaseModel):

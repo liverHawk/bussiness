@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { GENRES } from "@/lib/genres";
 import { searchSpots, type Spot, type SpotSearchFilters } from "@/lib/api";
 
@@ -51,6 +52,7 @@ function toggleAll(selected: string[], options: string[]): string[] {
 }
 
 export default function FilterPage(): React.JSX.Element {
+  const router = useRouter();
   const [filters, setFilters] = useState<FilterState>({
     congestion: [],
     genres: [],
@@ -245,21 +247,24 @@ export default function FilterPage(): React.JSX.Element {
             ) : (
               <ul className="space-y-3">
                 {results.map((spot) => (
-                  <li
-                    key={spot.spotId}
-                    className="bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900">{spot.name}</span>
-                      <span className="text-sm text-amber-500">
-                        ☆ {spot.reviewRating.toFixed(1)}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                      <span>{spot.category}</span>
-                      <span>·</span>
-                      <span>{spot.congestionStatus}</span>
-                    </div>
+                  <li key={spot.spotId}>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/spots/${spot.spotId}/reviews`)}
+                      className="w-full text-left bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm hover:border-orange-200 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-900">{spot.name}</span>
+                        <span className="text-sm text-amber-500">
+                          ☆ {spot.reviewRating.toFixed(1)}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                        <span>{spot.category}</span>
+                        <span>·</span>
+                        <span>{spot.congestionStatus}</span>
+                      </div>
+                    </button>
                   </li>
                 ))}
               </ul>

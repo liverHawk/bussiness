@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+import asyncio
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +13,38 @@ from app.schemas.spot import SpotResponse, SpotSearchResponse
 from app.services.supabase_auth import SupabaseAuthResult
 
 router = APIRouter(prefix="/spots", tags=["spots"])
+
+_geocode_lock = asyncio.Lock()
+_last_geocode_time: float = 0.0
+
+
+class GeocodeResult(BaseModel):
+    latitude: float
+    longitude: float
+    displayName: str
+
+
+class SpotDetailResponse(BaseModel):
+    spotId: str
+    name: str
+    description: str
+    category: str
+    latitude: float
+    longitude: float
+    congestionStatus: str
+    reviewRating: float
+
+
+class SpotReviewItem(BaseModel):
+    reviewId: str
+    userName: str
+    rating: float
+    content: str
+    photoUrl: str | None
+
+
+class SpotReviewsResponse(BaseModel):
+    reviews: list[SpotReviewItem]
 
 # フロントのジャンル ID → tags.name
 GENRE_TAG_NAMES: dict[str, str] = {
@@ -129,3 +165,161 @@ async def search_spots(
         for row in rows
     ]
     return SpotSearchResponse(spots=spots)
+
+
+@router.get("/geocode", response_model=GeocodeResult)
+async def geocode_address(
+    q: str = Query(..., min_length=1),
+    _user: SupabaseAuthResult = Depends(get_current_user),
+) -> GeocodeResult:
+    """住所・地名を緯度経度に変換する（Nominatim 経由）。Nominatim の利用規約に従い 1req/s 制限。"""
+    global _last_geocode_time
+    import time
+
+    async with _geocode_lock:
+        now = time.monotonic()
+        wait = 1.0 - (now - _last_geocode_time)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _last_geocode_time = time.monotonic()
+
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {"q": q, "format": "json", "limit": 1}
+    headers = {"User-Agent": "58hack-in-OMU/1.0 (demo)"}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        res = await client.get(url, params=params, headers=headers)
+        res.raise_for_status()
+    data = res.json()
+    if not data:
+        raise HTTPException(status_code=404, detail="場所が見つかりませんでした")
+    item = data[0]
+    return GeocodeResult(
+        latitude=float(item["lat"]),
+        longitude=float(item["lon"]),
+        displayName=item.get("display_name", q),
+    )
+
+
+@router.get("/{spot_id}", response_model=SpotDetailResponse)
+async def get_spot(
+    spot_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user: SupabaseAuthResult = Depends(get_current_user),
+) -> SpotDetailResponse:
+    """スポット（店舗）の詳細情報を取得する。"""
+    avg_rating = (
+        select(func.coalesce(func.avg(Review.rating), 0.0))
+        .where(Review.store == Store.store_id)
+        .scalar_subquery()
+    )
+    category = (
+        select(Tag.name)
+        .join(StoreTag, StoreTag.tag == Tag.tag_id)
+        .where(StoreTag.store == Store.store_id)
+        .order_by(Tag.name)
+        .limit(1)
+        .scalar_subquery()
+    )
+    result = await db.execute(
+        select(
+            Store.store_id,
+            Store.name,
+            Store.description,
+            Store.lat,
+            Store.lon,
+            Store.crowrd_level,
+            category.label("category"),
+            avg_rating.label("avg_rating"),
+        ).where(Store.store_id == spot_id)
+    )
+    row = result.first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="スポットが見つかりません")
+    return SpotDetailResponse(
+        spotId=str(row.store_id),
+        name=row.name,
+        description=row.description,
+        category=row.category or "",
+        latitude=row.lat if row.lat is not None else 0.0,
+        longitude=row.lon if row.lon is not None else 0.0,
+        congestionStatus=_congestion_label(row.crowrd_level),
+        reviewRating=round(float(row.avg_rating), 1),
+    )
+
+
+class ReviewPostRequest(BaseModel):
+    rating: float
+    content: str
+    photoUrl: str | None = None
+
+
+class ReviewPostResponse(BaseModel):
+    reviewId: str
+    message: str
+
+
+@router.post("/{spot_id}/reviews", response_model=ReviewPostResponse, status_code=201)
+async def post_spot_review(
+    spot_id: str,
+    body: ReviewPostRequest,
+    current_user: SupabaseAuthResult = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ReviewPostResponse:
+    """指定スポットにレビューを投稿する。"""
+    import uuid as _uuid
+
+    store_result = await db.execute(select(Store.store_id).where(Store.store_id == spot_id))
+    if store_result.first() is None:
+        raise HTTPException(status_code=404, detail="スポットが見つかりません")
+
+    new_review = Review(
+        review_id=_uuid.uuid4(),
+        store=spot_id,
+        post_user=current_user.user_id,
+        rating=max(0.0, min(5.0, body.rating)),
+        content=body.content,
+        photo_url=body.photoUrl,
+    )
+    db.add(new_review)
+    await db.commit()
+
+    return ReviewPostResponse(
+        reviewId=str(new_review.review_id),
+        message="レビューを投稿しました",
+    )
+
+
+@router.get("/{spot_id}/reviews", response_model=SpotReviewsResponse)
+async def get_spot_reviews(
+    spot_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user: SupabaseAuthResult = Depends(get_current_user),
+) -> SpotReviewsResponse:
+    """指定スポットのレビュー一覧を取得する。"""
+    from app.models.user import User
+
+    result = await db.execute(
+        select(
+            Review.review_id,
+            Review.rating,
+            Review.content,
+            Review.photo_url,
+            User.name.label("user_name"),
+        )
+        .join(User, User.user_id == Review.post_user)
+        .where(Review.store == spot_id)
+        .order_by(Review.review_id.desc())
+    )
+    rows = result.all()
+    return SpotReviewsResponse(
+        reviews=[
+            SpotReviewItem(
+                reviewId=str(row.review_id),
+                userName=row.user_name,
+                rating=row.rating or 0.0,
+                content=row.content,
+                photoUrl=row.photo_url,
+            )
+            for row in rows
+        ]
+    )

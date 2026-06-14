@@ -8,6 +8,7 @@ import DestinationList from './DestinationList'
 import TimeSelectorSheet from './TimeSelectorSheet'
 import MapSection from './MapSection'
 import SearchButton from './SearchButton'
+import { geocodeAddress, generateRoute } from '@/lib/api'
 
 export type SearchFormState = {
   departure: string
@@ -25,15 +26,40 @@ export default function RouteSearchScreen() {
   const router = useRouter()
   const [form, setForm] = useState<SearchFormState>(defaultState)
   const [timeSheetOpen, setTimeSheetOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const setDeparture = (value: string) => setForm((s: SearchFormState) => ({ ...s, departure: value }))
   const setDestinations = (destinations: string[]) => setForm((s: SearchFormState) => ({ ...s, destinations }))
   const setEndTime = (endTime: string) => setForm((s: SearchFormState) => ({ ...s, endTime }))
 
-  const handleSearch = () => {
-    console.log('SearchFormState:', form)
-    // future: call frontend/src/lib/api.ts -> searchRoute(form)
-    router.push('/route-result')
+  const handleSearch = async () => {
+    setError(null)
+    setLoading(true)
+    try {
+      const today = new Date().toISOString().slice(0, 10)
+      const specifiedDateTime = new Date(`${today}T${form.endTime}:00`).toISOString()
+
+      const [startGeo, ...destGeos] = await Promise.all([
+        geocodeAddress(form.departure || '大阪駅'),
+        ...form.destinations
+          .filter((d) => d.trim() !== '')
+          .map((d) => geocodeAddress(d)),
+      ])
+
+      const result = await generateRoute({
+        startLocation: { latitude: startGeo.latitude, longitude: startGeo.longitude },
+        destinations: destGeos.map((g) => ({ latitude: g.latitude, longitude: g.longitude })),
+        specifiedDateTime,
+        timeType: 'departure',
+      })
+
+      sessionStorage.setItem('routeResult', JSON.stringify(result))
+      router.push('/route-result')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ルート検索に失敗しました')
+      setLoading(false)
+    }
   }
 
   return (
@@ -63,8 +89,12 @@ export default function RouteSearchScreen() {
             readOnly
           />
 
+          {error && (
+            <p className="text-sm text-red-500 px-1">{error}</p>
+          )}
+
           <div className="pt-2">
-            <SearchButton onClick={handleSearch} />
+            <SearchButton onClick={handleSearch} disabled={loading} label={loading ? '検索中...' : undefined} />
           </div>
         </section>
 
@@ -77,7 +107,7 @@ export default function RouteSearchScreen() {
           onClose={() => setTimeSheetOpen(false)}
           endTime={form.endTime}
           onChangeEndTime={setEndTime}
-          onConfirm={() => console.log('SearchFormState:', form)}
+          onConfirm={() => setTimeSheetOpen(false)}
         />
       </main>
     </div>

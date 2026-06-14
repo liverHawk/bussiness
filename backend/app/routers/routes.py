@@ -122,9 +122,13 @@ async def generate_route(
             ).model_dump(),
         )
 
-    legs = osrm_data.get("routes", [{}])[0].get("legs", [])
+    osrm_route = osrm_data.get("routes", [{}])[0]
+    legs = osrm_route.get("legs", [])
     total_duration_sec: float = sum(leg.get("duration", 0) for leg in legs)
     total_distance_m: float = sum(leg.get("distance", 0) for leg in legs)
+    # GeoJSON geometry: [[lon, lat], ...] → [[lat, lon], ...]
+    geom_coords = osrm_route.get("geometry", {}).get("coordinates", [])
+    path = [[c[1], c[0]] for c in geom_coords]
 
     current_time: datetime = body.specifiedDateTime
     if current_time.tzinfo is None:
@@ -205,6 +209,7 @@ async def generate_route(
         totalDuration=int(total_duration_sec / 60),
         totalDistance=round(total_distance_m / 1000, 2),
         timeline=timeline,
+        path=path,
     )
 
 

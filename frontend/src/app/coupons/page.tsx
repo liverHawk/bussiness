@@ -2,9 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { fetchMyCoupons, CouponItem } from "@/lib/api";
-
-const DEV_TOKEN = "dev-token-placeholder";
+import { fetchMyCoupons, getAccessToken, CouponItem } from "@/lib/api";
 
 export default function MyCouponsPage() {
   const [coupons, setCoupons] = useState<CouponItem[] | null>(null);
@@ -12,7 +10,8 @@ export default function MyCouponsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchMyCoupons(DEV_TOKEN)
+    const token = getAccessToken() ?? "";
+    fetchMyCoupons(token)
       .then((items) => {
         setCoupons(items);
         setError(null);

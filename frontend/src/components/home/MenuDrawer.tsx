@@ -35,7 +35,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
           type="button"
           aria-label="メニューを閉じる"
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/40"
+          className="fixed inset-0 z-[9998] bg-black/40"
         />
       )}
 

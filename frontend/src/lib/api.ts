@@ -344,3 +344,38 @@ export async function purchaseCoins(
   }
   return res.json();
 }
+
+export interface PaymentResultResponse {
+  paymentId: string;
+  status: string;
+  addedCoins: number;
+  currentTotalCoins: number;
+}
+
+export async function getPaymentResult(
+  paymentId: string
+): Promise<PaymentResultResponse> {
+  const res = await apiFetch(`${API_URL}/billing/payments/${paymentId}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message ?? "決済結果の取得に失敗しました");
+  }
+  return res.json();
+}
+
+export async function syncPaymentResult(
+  paymentId: string,
+  sessionId: string
+): Promise<PaymentResultResponse> {
+  const res = await apiFetch(
+    `${API_URL}/billing/payments/${paymentId}/sync?session_id=${encodeURIComponent(sessionId)}`,
+    { method: "POST", headers: authHeaders() }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message ?? "決済の同期に失敗しました");
+  }
+  return res.json();
+}

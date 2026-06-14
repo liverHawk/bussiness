@@ -217,6 +217,16 @@ class SupabaseAuthService:
                 401,
             )
 
+        if (
+            error_code == "email_not_confirmed"
+            or "email not confirmed" in msg.lower()
+        ):
+            raise SupabaseAuthError(
+                "EMAIL_NOT_CONFIRMED",
+                "メールアドレスの確認が完了していません。確認メールのリンクをクリックしてください",
+                403,
+            )
+
         raise SupabaseAuthError(
             "AUTH_ERROR",
             msg or "認証処理に失敗しました",

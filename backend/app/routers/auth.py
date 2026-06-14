@@ -15,6 +15,7 @@ from app.services.supabase_auth import (
     SupabaseAuthService,
     get_supabase_auth_service,
 )
+from app.services.user_sync import ensure_user_record
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -58,24 +59,18 @@ async def login(
             ).model_dump(),
         ) from exc
 
-    result = await db.execute(select(User).where(User.e_mail == body.loginId))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        user = User(
-            user_id=auth_result.user_id,
-            type="User",
-            name=auth_result.name,
-            e_mail=auth_result.email,
-            pwd_hash=body.pwd_hash,
+    if not auth_result.access_token:
+        raise HTTPException(
+            status_code=500,
+            detail=ErrorResponse(
+                error=ErrorBody(
+                    code="AUTH_ERROR",
+                    message="認証トークンを取得できませんでした",
+                )
+            ).model_dump(),
         )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    elif user.user_id != auth_result.user_id:
-        user.user_id = auth_result.user_id
-        await db.commit()
-        await db.refresh(user)
+
+    user = await ensure_user_record(db, auth_result, pwd_hash=body.pwd_hash)
 
     return AuthResponse(
         accessToken=auth_result.access_token,
@@ -89,15 +84,16 @@ async def logout(
     auth_service: SupabaseAuthService = Depends(get_supabase_auth_service),
 ) -> LogoutResponse:
     """認証トークンを無効化し、安全にログアウトする。"""
-    try:
-        await auth_service.sign_out(current_user.access_token)
-    except SupabaseAuthError as exc:
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail=ErrorResponse(
-                error=ErrorBody(code=exc.code, message=exc.message)
-            ).model_dump(),
-        ) from exc
+    if current_user.access_token:
+        try:
+            await auth_service.sign_out(current_user.access_token)
+        except SupabaseAuthError as exc:
+            raise HTTPException(
+                status_code=exc.status_code,
+                detail=ErrorResponse(
+                    error=ErrorBody(code=exc.code, message=exc.message)
+                ).model_dump(),
+            ) from exc
 
     return LogoutResponse(success=True, message="ログアウトしました")
 
@@ -173,17 +169,16 @@ async def register(
     try:
         await db.commit()
         await db.refresh(user)
-    except IntegrityError as exc:
+    except IntegrityError:
         await db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail=ErrorResponse(
-                error=ErrorBody(
-                    code="EMAIL_ALREADY_EXISTS",
-                    message="このメールアドレスは既に登録されています",
-                )
-            ).model_dump(),
-        ) from exc
+        user = await ensure_user_record(
+            db,
+            auth_result,
+            pwd_hash=body.pwd_hash,
+        )
+        user.name = body.name
+        await db.commit()
+        await db.refresh(user)
 
     return AuthResponse(
         accessToken=auth_result.access_token,

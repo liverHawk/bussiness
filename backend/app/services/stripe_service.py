@@ -84,3 +84,13 @@ def verify_webhook(payload: bytes, signature: str) -> dict:
     except (ValueError, stripe.SignatureVerificationError) as exc:  # type: ignore[attr-defined]
         raise StripeError("Webhook 署名の検証に失敗しました") from exc
     return event
+
+
+def retrieve_checkout_session(session_id: str) -> dict:
+    """Checkout セッションを取得する（Webhook 未設定時の同期用）。"""
+    _client()
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except stripe.StripeError as exc:  # type: ignore[attr-defined]
+        raise StripeError(f"決済セッションの取得に失敗しました: {exc}") from exc
+    return session

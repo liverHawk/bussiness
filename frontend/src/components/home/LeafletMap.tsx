@@ -16,8 +16,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow.src,
 })
 
-// 大阪公立大学 杉本キャンパス周辺
-const CENTER: [number, number] = [34.5446, 135.5064]
+// 天王寺駅周辺
+const CENTER: [number, number] = [34.6461, 135.5135]
 
 const CATEGORY_EMOJI: Record<SpotCategory, string> = {
   restaurant: '🍴',

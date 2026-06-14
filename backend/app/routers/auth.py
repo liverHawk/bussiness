@@ -107,14 +107,21 @@ async def login(
 
     try:
         user = await ensure_user_record(db, auth_result, pwd_hash=body.pwd_hash)
+        user_resp = _user_response(user)
     except Exception as exc:
         if _is_database_error(exc):
-            raise _database_error_response(exc) from exc
-        raise
+            # DB sync failed but Supabase auth succeeded — return token with info from auth
+            user_resp = UserResponse(
+                id=str(auth_result.user_id),
+                name=auth_result.name or "",
+                email=auth_result.email or "",
+            )
+        else:
+            raise
 
     return AuthResponse(
         accessToken=auth_result.access_token,
-        user=_user_response(user),
+        user=user_resp,
     )
 
 

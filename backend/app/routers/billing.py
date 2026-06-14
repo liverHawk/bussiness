@@ -24,6 +24,7 @@ from app.schemas.billing import (
 from app.schemas.errors import ErrorBody, ErrorResponse
 from app.services import stripe_service
 from app.services.supabase_auth import SupabaseAuthResult
+from app.services.user_sync import ensure_user_record
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -49,7 +50,9 @@ async def purchase_coins(
         raise _error(400, "INVALID_AMOUNT", "購入できるコインの数量が正しくありません")
 
     if not stripe_service.is_configured():
-        raise _error(503, "SERVER_ERROR", "決済サービスが設定されていません")
+        raise _error(503, "STRIPE_NOT_CONFIGURED", "決済サービスが設定されていません（STRIPE_SECRET_KEY）")
+
+    await ensure_user_record(db, current_user)
 
     amount_yen = body.coinAmount * settings.coin_to_yen_rate
     payment_id = f"pay_{secrets.token_hex(8)}"
@@ -117,6 +120,56 @@ async def get_payment_result(
     )
 
 
+async def _complete_payment_if_paid(
+    db: AsyncSession,
+    payment: Payment,
+) -> None:
+    """PENDING 決済を COMPLETED にしコインを付与する（冪等）。"""
+    if payment.status != "PENDING":
+        return
+    user_result = await db.execute(
+        select(User).where(User.user_id == payment.user_id)
+    )
+    user = user_result.scalar_one_or_none()
+    if user is not None:
+        user.coin += payment.coin_amount
+    payment.status = "COMPLETED"
+    await db.commit()
+
+
+@router.post("/payments/{payment_id}/sync", response_model=PaymentResultResponse)
+async def sync_payment_from_stripe(
+    payment_id: str,
+    session_id: str,
+    current_user: SupabaseAuthResult = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PaymentResultResponse:
+    """Stripe Checkout セッションを確認し、支払い済みならコインを付与する。
+
+    Webhook 未設定・遅延時のフォールバック。成功画面から session_id 付きで呼ぶ。
+    """
+    if not stripe_service.is_configured():
+        raise _error(503, "STRIPE_NOT_CONFIGURED", "決済サービスが設定されていません")
+
+    result = await db.execute(
+        select(Payment).where(Payment.payment_id == payment_id)
+    )
+    payment = result.scalar_one_or_none()
+    if payment is None or payment.user_id != current_user.user_id:
+        raise _error(404, "PAYMENT_NOT_FOUND", "指定された決済情報が見つかりません")
+
+    if payment.status == "PENDING":
+        try:
+            session = stripe_service.retrieve_checkout_session(session_id)
+        except stripe_service.StripeError as exc:
+            raise _error(400, "STRIPE_ERROR", exc.message) from exc
+        if session.get("payment_status") == "paid":
+            await _complete_payment_if_paid(db, payment)
+            await db.refresh(payment)
+
+    return await get_payment_result(payment_id, current_user, db)
+
+
 @router.post("/webhook")
 async def stripe_webhook(
     request: Request,
@@ -150,13 +203,6 @@ async def stripe_webhook(
 
             # PENDING のときだけ加算（冪等性を担保）
             if payment is not None and payment.status == "PENDING":
-                user_result = await db.execute(
-                    select(User).where(User.user_id == payment.user_id)
-                )
-                user = user_result.scalar_one_or_none()
-                if user is not None:
-                    user.coin += payment.coin_amount
-                payment.status = "COMPLETED"
-                await db.commit()
+                await _complete_payment_if_paid(db, payment)
 
     return {"received": True}

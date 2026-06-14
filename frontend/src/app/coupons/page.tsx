@@ -2,15 +2,24 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { fetchMyCoupons, getAccessToken, CouponItem } from "@/lib/api";
+import { fetchMyCoupons, getAccessToken, getMe, CouponItem } from "@/lib/api";
 import AuthGuard from "@/components/AuthGuard";
+import MenuDrawer from "@/components/home/MenuDrawer";
 
 export default function MyCouponsPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [coupons, setCoupons] = useState<CouponItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userName, setUserName] = useState("—");
 
   useEffect(() => {
+    getMe().then((me) => setUserName(me.username)).catch(() => {
+      try {
+        const raw = localStorage.getItem("currentUser");
+        if (raw) { const u = JSON.parse(raw) as { name?: string }; setUserName(u.name ?? "—"); }
+      } catch { /* ignore */ }
+    });
     const token = getAccessToken() ?? "";
     fetchMyCoupons(token)
       .then((items) => {
@@ -28,24 +37,19 @@ export default function MyCouponsPage() {
     <AuthGuard>
     <main className="min-h-screen bg-[#f9f2e8] px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-4xl">
-        <header className="mb-6 flex items-center justify-between">
+        <header className="mb-6 flex items-center">
           <button
             type="button"
+            onClick={() => setMenuOpen(true)}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm shadow-slate-200"
           >
             <span className="text-xl">☰</span>
-          </button>
-          <button
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm shadow-slate-200"
-          >
-            <span className="text-xl">👤</span>
           </button>
         </header>
 
         <section className="mb-8 overflow-hidden rounded-full bg-[#c68f3a] px-6 py-5 text-white shadow-lg shadow-black/10">
           <p className="text-sm opacity-90">アカウント名</p>
-          <p className="mt-1 text-lg font-semibold tracking-wide">〇〇〇</p>
+          <p className="mt-1 text-lg font-semibold tracking-wide">{userName}</p>
         </section>
 
         <h1 className="mb-6 text-3xl font-bold tracking-tight text-[#3c2b19]">マイクーポン</h1>
@@ -102,7 +106,9 @@ export default function MyCouponsPage() {
           </div>
         )}
       </div>
-    </main>
+      </main>
+
+      <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
     </AuthGuard>
   );
 }

@@ -18,7 +18,9 @@ export default function LoginPage(): React.JSX.Element {
     setLoading(true);
     try {
       const res = await login(email, password);
-      if (!res.accessToken) throw new Error("ログインに失敗しました");
+      if (!res.accessToken) {
+        throw new Error(res.message ?? "ログインに失敗しました");
+      }
       saveAccessToken(res.accessToken);
       localStorage.setItem("currentUser", JSON.stringify(res.user));
       router.push("/");

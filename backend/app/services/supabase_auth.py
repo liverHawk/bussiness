@@ -112,12 +112,18 @@ class SupabaseAuthService:
             user, token = self._extract_user_and_token(data)
             metadata = user.get("user_metadata") or {}
             user_id = user.get("id")
+
+            # Supabase がメール確認有効時に {"user": null, "session": null} を返すケース。
+            # ダミー UUID を生成してメール確認待ちとして扱う。
             if not user_id:
-                raise SupabaseAuthError(
-                    "AUTH_ERROR",
-                    "認証処理に失敗しました",
-                    500,
+                return SupabaseAuthResult(
+                    access_token=None,
+                    user_id=uuid.uuid4(),
+                    email=email,
+                    name=fallback_name,
+                    email_confirmation_required=True,
                 )
+
             if not token:
                 return SupabaseAuthResult(
                     access_token=None,
@@ -142,6 +148,13 @@ class SupabaseAuthService:
                 "EMAIL_ALREADY_EXISTS",
                 "このメールアドレスは既に登録されています",
                 409,
+            )
+
+        if error_code == "weak_password" or "password" in msg.lower():
+            raise SupabaseAuthError(
+                "WEAK_PASSWORD",
+                "パスワードが弱すぎます。より強いパスワードを設定してください",
+                400,
             )
 
         raise SupabaseAuthError(
@@ -202,6 +215,16 @@ class SupabaseAuthService:
                 "INVALID_CREDENTIALS",
                 "メールアドレスまたはパスワードが正しくありません",
                 401,
+            )
+
+        if (
+            error_code == "email_not_confirmed"
+            or "email not confirmed" in msg.lower()
+        ):
+            raise SupabaseAuthError(
+                "EMAIL_NOT_CONFIRMED",
+                "メールアドレスの確認が完了していません。確認メールのリンクをクリックしてください",
+                403,
             )
 
         raise SupabaseAuthError(

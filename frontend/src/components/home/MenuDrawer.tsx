@@ -35,13 +35,13 @@ export default function MenuDrawer({ open, onClose }: Props) {
           type="button"
           aria-label="メニューを閉じる"
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/40"
+          className="fixed inset-0 z-[9998] bg-black/40"
         />
       )}
 
       {/* Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#f3e4d7] shadow-2xl transition-transform duration-300 ${
+        className={`fixed inset-y-0 left-0 z-[9999] w-72 bg-[#f3e4d7] shadow-2xl transition-transform duration-300 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

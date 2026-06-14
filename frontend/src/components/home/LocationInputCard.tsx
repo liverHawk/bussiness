@@ -31,11 +31,6 @@ export default function LocationInputCard({ label, value, placeholder, onChange,
         />
       </div>
 
-      <div className="flex-none">
-        {!readOnly && (
-          <button className="text-gray-400">⋯</button>
-        )}
-      </div>
     </div>
   )
 }

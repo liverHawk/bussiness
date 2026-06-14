@@ -8,9 +8,15 @@ class Location(BaseModel):
     longitude: float
 
 
+class Destination(BaseModel):
+    latitude: float
+    longitude: float
+    preferredGenres: list[str] = []
+
+
 class RouteGenerateRequest(BaseModel):
     startLocation: Location
-    destinations: list[Location]
+    destinations: list[Destination]
     specifiedDateTime: datetime
     timeType: str  # "departure" | "arrival"
 

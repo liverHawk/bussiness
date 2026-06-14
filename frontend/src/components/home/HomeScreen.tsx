@@ -6,6 +6,7 @@ import Header from './Header'
 import PrimaryRouteButton from './PrimaryRouteButton'
 import SearchBar from './SearchBar'
 import MapSection from './MapSection'
+import AuthGuard from '@/components/AuthGuard'
 import { SEARCH_SPOTS, type Spot } from '@/lib/spots'
 import { searchSpots } from '@/lib/api'
 import type { CongestionLevel } from '@/lib/congestion'
@@ -51,20 +52,22 @@ export default function HomeScreen() {
   }, [])
 
   return (
-    <div className="flex h-screen w-full flex-col overflow-hidden bg-[#fffbf7] text-[#2f2419]">
-      <div className="z-10 flex flex-col gap-3 px-4 pb-4 pt-3">
-        <Header />
-        <PrimaryRouteButton onClick={() => router.push('/route-search')} />
-        <SearchBar
-          onSearchClick={() => router.push('/search/filter')}
-          onFilterClick={() => router.push('/search/filter')}
-        />
-      </div>
+    <AuthGuard>
+      <div className="flex h-screen w-full flex-col overflow-hidden bg-[#fffbf7] text-[#2f2419]">
+        <div className="z-10 flex flex-col gap-3 px-4 pb-4 pt-3">
+          <Header />
+          <PrimaryRouteButton onClick={() => router.push('/route-search')} />
+          <SearchBar
+            onSearchClick={() => router.push('/search/filter')}
+            onFilterClick={() => router.push('/search/filter')}
+          />
+        </div>
 
-      <div className="relative -mt-3 flex-1 overflow-hidden rounded-t-3xl shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
-        {/* ピンは常に表示 */}
-        <MapSection showCongestion spots={spots} />
+        <div className="relative -mt-3 flex-1 overflow-hidden rounded-t-3xl shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
+          {/* ピンは常に表示 */}
+          <MapSection showCongestion spots={spots} />
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   )
 }

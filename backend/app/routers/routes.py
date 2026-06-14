@@ -15,10 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.route import Route, RoutePoint
-from app.models.store import Store
+from app.models.store import Store, StoreTag, Tag
 from app.schemas.errors import ErrorBody, ErrorResponse
 from app.schemas.route import (
     DaySummaryEntry,
+    Destination,
     RouteGenerateRequest,
     RouteGenerateResponse,
     SavedRoute,
@@ -63,12 +64,39 @@ def _congestion_label(level: float | None) -> str:
 
 
 async def _nearest_store(
-    lat: float, lon: float, db: AsyncSession, radius_km: float = 0.3
+    lat: float,
+    lon: float,
+    db: AsyncSession,
+    radius_km: float = 0.3,
+    preferred_genres: list[str] | None = None,
 ) -> Store | None:
-    """指定座標から radius_km 以内で最近傍の店舗を返す。"""
-    result = await db.execute(
-        select(Store).where(Store.lat.isnot(None), Store.lon.isnot(None))
-    )
+    """指定座標から radius_km 以内で最近傍の店舗を返す。
+    preferred_genres が指定された場合は対応するタグを持つ店舗のみを対象にする。
+    """
+    # スポット側のジャンルIDタグ名マッピング（spots.py と共通）
+    GENRE_TAG_NAMES: dict[str, str] = {
+        "cafe": "カフェ",
+        "restaurant": "レストラン",
+        "temple": "寺院・神社・城",
+        "park": "公園",
+        "museum": "美術館・博物館・ミュージアム",
+    }
+
+    stmt = select(Store).where(Store.lat.isnot(None), Store.lon.isnot(None))
+
+    if preferred_genres:
+        tag_names = [GENRE_TAG_NAMES[g] for g in preferred_genres if g in GENRE_TAG_NAMES]
+        if tag_names:
+            genre_exists = (
+                select(1)
+                .select_from(StoreTag)
+                .join(Tag, StoreTag.tag == Tag.tag_id)
+                .where(StoreTag.store == Store.store_id, Tag.name.in_(tag_names))
+                .exists()
+            )
+            stmt = stmt.where(genre_exists)
+
+    result = await db.execute(stmt)
     stores = result.scalars().all()
     best: Store | None = None
     best_dist = float("inf")
@@ -154,7 +182,12 @@ async def generate_route(
         travel_sec: float = leg.get("duration", 0)
         current_time += timedelta(seconds=travel_sec)
 
-        store = await _nearest_store(dest.latitude, dest.longitude, db)
+        store = await _nearest_store(
+            dest.latitude,
+            dest.longitude,
+            db,
+            preferred_genres=dest.preferredGenres if dest.preferredGenres else None,
+        )
         if store:
             matched_stores.append(store)
 

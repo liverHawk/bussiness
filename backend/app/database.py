@@ -14,21 +14,27 @@ def _normalize_database_url(url: str) -> str:
 
 
 def _connect_args() -> dict:
-    """Supabase 等のリモート PostgreSQL 向け SSL 設定。"""
+    """Supabase 等のリモート PostgreSQL 向け SSL / Pooler 設定。"""
     url = settings.database_url
+    args: dict = {}
     if (
         "supabase.co" in url
         or "pooler.supabase.com" in url
         or "sslmode=require" in url
     ):
-        return {"ssl": ssl.create_default_context()}
-    return {}
+        args["ssl"] = ssl.create_default_context()
+    # Supabase Transaction pooler は prepared statement 非対応
+    if "pooler.supabase.com" in url:
+        args["statement_cache_size"] = 0
+        args["prepared_statement_cache_size"] = 0
+    return args
 
 
 engine = create_async_engine(
     _normalize_database_url(settings.database_url),
     echo=False,
     connect_args=_connect_args(),
+    pool_pre_ping=True,
 )
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 

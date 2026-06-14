@@ -36,6 +36,34 @@ def _register_confirmation_message() -> str:
     )
 
 
+def _database_error_response(exc: BaseException) -> HTTPException:
+    detail = str(exc).lower()
+    if "tenant/user" in detail or "enotfound" in detail:
+        message = (
+            "Supabase の DATABASE_URL が正しくありません。"
+            "ダッシュボード → Settings → Database → Connection string から"
+            "Pooler URI をそのままコピーし、先頭を postgresql+asyncpg:// に変更してください。"
+        )
+    else:
+        message = (
+            "データベースに接続できません。"
+            "backend/.env の DATABASE_URL を確認してください。"
+        )
+    return HTTPException(
+        status_code=503,
+        detail=ErrorResponse(
+            error=ErrorBody(code="DATABASE_ERROR", message=message)
+        ).model_dump(),
+    )
+
+
+def _is_database_error(exc: BaseException) -> bool:
+    if isinstance(exc, (SQLAlchemyError, OSError)):
+        return True
+    module = exc.__class__.__module__
+    return module.startswith("asyncpg")
+
+
 @router.post("/login", response_model=AuthResponse)
 async def login(
     body: LoginRequest,
@@ -79,20 +107,10 @@ async def login(
 
     try:
         user = await ensure_user_record(db, auth_result, pwd_hash=body.pwd_hash)
-    except (SQLAlchemyError, OSError) as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=ErrorResponse(
-                error=ErrorBody(
-                    code="DATABASE_ERROR",
-                    message=(
-                        "データベースに接続できません。"
-                        "VPS の backend/.env の DATABASE_URL（Supabase 接続文字列）"
-                        "とネットワーク設定を確認してください。"
-                    ),
-                )
-            ).model_dump(),
-        ) from exc
+    except Exception as exc:
+        if _is_database_error(exc):
+            raise _database_error_response(exc) from exc
+        raise
 
     return AuthResponse(
         accessToken=auth_result.access_token,

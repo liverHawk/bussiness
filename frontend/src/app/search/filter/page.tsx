@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GENRES } from "@/lib/genres";
 import { searchSpots, type Spot, type SpotSearchFilters } from "@/lib/api";
+import AuthGuard from "@/components/AuthGuard";
 
 type FilterState = SpotSearchFilters;
 
@@ -109,6 +110,7 @@ export default function FilterPage(): React.JSX.Element {
   const reviewValues = REVIEW_OPTIONS.map((o) => o.value);
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-white">
@@ -273,5 +275,6 @@ export default function FilterPage(): React.JSX.Element {
         )}
       </main>
     </div>
+    </AuthGuard>
   );
 }

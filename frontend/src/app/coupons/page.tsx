@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { fetchMyCoupons, getAccessToken, CouponItem } from "@/lib/api";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function MyCouponsPage() {
   const [coupons, setCoupons] = useState<CouponItem[] | null>(null);
@@ -24,6 +25,7 @@ export default function MyCouponsPage() {
   }, []);
 
   return (
+    <AuthGuard>
     <main className="min-h-screen bg-[#f9f2e8] px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-4xl">
         <header className="mb-6 flex items-center justify-between">
@@ -101,5 +103,6 @@ export default function MyCouponsPage() {
         )}
       </div>
     </main>
+    </AuthGuard>
   );
 }

@@ -56,7 +56,28 @@
             display: flex;
             flex-direction: column;
             z-index: 1000;
+            overflow: hidden;
+            /* ← 全体はスクロールしない */
+        }
+
+        .drawer nav {
+            flex: 1;
+            min-height: 0;
+            /* ← スクロール跳ね返り防止 */
+            overflow: hidden;
+        }
+
+        .menu-list {
+            list-style: none;
+            padding: 0;
+            margin: 16px 0 0;
+            display: grid;
+            gap: 16px;
+            flex: 1;
+            min-height: 0;
+            /* ← これがないとログアウトが見切れる */
             overflow-y: auto;
+            /* ← メニューだけスクロール */
         }
 
         .preview-frame {
@@ -79,14 +100,6 @@
             font-size: 22px;
             cursor: pointer;
             margin-bottom: 12px;
-        }
-
-        .menu-list {
-            list-style: none;
-            padding: 0;
-            margin: 16px 0 0;
-            display: grid;
-            gap: 16px;
         }
 
         .menu-item {
@@ -116,7 +129,8 @@
             font-size: 20px;
         }
 
-        <<<<<<< HEAD .menu-item-toggle {
+        /* Toggle button for submenu */
+        .menu-item-toggle {
             display: flex;
             align-items: center;
             gap: 10px;
@@ -170,13 +184,6 @@
             transform: translateX(1px);
         }
 
-        =======>>>>>>>6283ed7c5b2501325286abffdb6e97b80ff1d33a .separator {
-            height: 1px;
-            background: #e2d8d0;
-            margin: 18px 0;
-            border: none;
-        }
-
         .fallback-text {
             position: absolute;
             inset: 0;
@@ -196,13 +203,16 @@
         <iframe id="previewFrame" class="preview-frame" src="" title="元の画面"></iframe>
         <div class="fallback-text" id="fallbackText">元の画面を読み込み中です...</div>
     </div>
+
     <div class="drawer">
-        <button class="close-btn" onclick="window.history.back()" aria-label="閉じる">✕</button>
+        <button class="close-btn" type="button" aria-label="閉じる">✕</button>
+
         <nav>
             <ul class="menu-list">
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">🏠</span>ホーム</a></li>
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">🔖</span>セーブ</a></li>
-                <<<<<<< HEAD <li>
+
+                <li>
                     <button class="menu-item-toggle" type="button" id="coinToggle" aria-expanded="false"
                         aria-controls="coinSubmenu">
                         <span class="menu-item-icon">🪙</span>めぐコイン
@@ -212,37 +222,41 @@
                         <li><button class="submenu-item" type="button">チャージ</button></li>
                         <li><button class="submenu-item" type="button">マイクーポン</button></li>
                     </ul>
-                    </li>
-                    =======
-                    <li><a class="menu-item" href="#"><span class="menu-item-icon">🪙</span>〇〇コイン</a></li>
-                    >>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
-                    <li><a class="menu-item" href="#"><span class="menu-item-icon">💬</span>レビュー・フォト</a></li>
-                    <li><a class="menu-item" href="HTML/CSS/setting.html"><span class="menu-item-icon">⚙️</span>設定</a>
-                    </li>
-                    <li><a class="menu-item" href="#"><span class="menu-item-icon">↩️</span>ログアウト</a></li>
+                </li>
+
+                <li><a class="menu-item" href="#"><span class="menu-item-icon">💬</span>レビュー・フォト</a></li>
+                <li><a class="menu-item" href="HTML/CSS/setting.html"><span class="menu-item-icon">⚙️</span>設定</a></li>
+                <li><a class="menu-item" href="#"><span class="menu-item-icon">↩️</span>ログアウト</a></li>
             </ul>
         </nav>
     </div>
+
     <script>
         const params = new URLSearchParams(window.location.search);
         const src = params.get('src');
         const frame = document.getElementById('previewFrame');
         const fallback = document.getElementById('fallbackText');
-<<<<<<< HEAD
-        const toggleButton = document.getElementById('coinToggle');
-        const submenu = document.getElementById('coinSubmenu');
-=======
->>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
 
         if (src) {
             frame.src = src;
-            frame.onload = () => {
-                fallback.style.display = 'none';
-            };
+            frame.onload = () => fallback.style.display = 'none';
         } else {
             fallback.textContent = '元の画面情報がありません。メニューアイコンから開いてください。';
         }
-<<<<<<< HEAD
+
+        /* ×ボタンでメニューを閉じる */
+        const closeButton = document.querySelector('.close-btn');
+        const drawer = document.querySelector('.drawer');
+
+        if (closeButton && drawer) {
+            closeButton.addEventListener('click', () => {
+                drawer.style.display = 'none';
+            });
+        }
+
+        /* めぐコインのサブメニュー */
+        const toggleButton = document.getElementById('coinToggle');
+        const submenu = document.getElementById('coinSubmenu');
 
         if (toggleButton && submenu) {
             toggleButton.addEventListener('click', () => {
@@ -251,8 +265,6 @@
                 submenu.classList.toggle('show');
             });
         }
-=======
->>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
     </script>
 </body>
 

@@ -7,7 +7,7 @@ import PrimaryRouteButton from './PrimaryRouteButton'
 import SearchBar from './SearchBar'
 import MapSection from './MapSection'
 import AuthGuard from '@/components/AuthGuard'
-import { SEARCH_SPOTS, type Spot } from '@/lib/spots'
+import type { Spot } from '@/lib/spots'
 import { searchSpots } from '@/lib/api'
 import type { CongestionLevel } from '@/lib/congestion'
 import type { SpotCategory } from '@/lib/spots'
@@ -30,7 +30,7 @@ function toSpotCategory(category: string): SpotCategory {
 
 export default function HomeScreen() {
   const router = useRouter()
-  const [spots, setSpots] = useState<Spot[]>(SEARCH_SPOTS)
+  const [spots, setSpots] = useState<Spot[]>([])
 
   // 起動時にAPIからスポットを取得（認証エラーはモックにフォールバック）
   useEffect(() => {

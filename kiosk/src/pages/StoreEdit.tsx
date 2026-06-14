@@ -95,13 +95,16 @@ export default function StoreEdit() {
 
   const create = async () => {
     setError(""); setMessage("");
+    if (!userId) { setError("ログインしてください"); return; }
     if (!form.name) { setError("店舗名を入力してください"); return; }
     try {
-      const s = await createStore({ ...payload(), owner: userId! });
+      const s = await createStore({ ...payload(), owner: userId });
       addStore(s);
       setActiveStore(s.store_id);
       setMessage("店舗を登録しました");
-    } catch { setError("登録に失敗しました"); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "登録に失敗しました");
+    }
   };
 
   // マーカー位置（数値として有効な場合のみ）

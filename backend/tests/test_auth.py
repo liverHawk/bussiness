@@ -173,6 +173,39 @@ async def test_register_email_already_exists_in_db(auth_client):
 
 
 @pytest.mark.asyncio
+async def test_register_email_confirmation_required(auth_client):
+    client, mock_db, mock_auth = auth_client
+    mock_auth.sign_up.return_value = SupabaseAuthResult(
+        access_token=None,
+        user_id=USER_ID,
+        email="test@example.com",
+        name="テスト太郎",
+        email_confirmation_required=True,
+    )
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_db.execute = AsyncMock(return_value=mock_result)
+    mock_db.commit = AsyncMock()
+    mock_db.refresh = AsyncMock()
+
+    response = await client.post(
+        "/auth/register",
+        json={
+            "email": "test@example.com",
+            "pwd_hash": "a" * 64,
+            "name": "テスト太郎",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["accessToken"] is None
+    assert data["requiresEmailConfirmation"] is True
+    assert data["user"]["email"] == "test@example.com"
+    mock_db.add.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_register_email_already_exists_in_supabase(auth_client):
     client, mock_db, mock_auth = auth_client
     mock_result = MagicMock()

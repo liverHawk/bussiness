@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getMe, type MeResponse } from "@/lib/api";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function AccountSettingsPage(): React.JSX.Element {
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function AccountSettingsPage(): React.JSX.Element {
   }, []);
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#f3e4d7]">
       <header className="sticky top-0 z-40 bg-[#f3e4d7] border-b border-[#d4b896]">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-3">
@@ -105,5 +107,6 @@ export default function AccountSettingsPage(): React.JSX.Element {
         </div>
       </main>
     </div>
+    </AuthGuard>
   );
 }

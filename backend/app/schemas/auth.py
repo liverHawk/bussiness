@@ -46,5 +46,7 @@ class UserResponse(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    accessToken: str
+    accessToken: str | None = None
+    requiresEmailConfirmation: bool = False
+    message: str | None = None
     user: UserResponse

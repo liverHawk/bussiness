@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -25,6 +26,13 @@ class LogoutResponse(BaseModel):
 
 def _user_response(user: User) -> UserResponse:
     return UserResponse(id=str(user.user_id), name=user.name, email=user.e_mail)
+
+
+def _register_confirmation_message() -> str:
+    return (
+        "確認メールを送信しました。"
+        "メール内のリンクをクリック後、ログインしてください。"
+    )
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -139,8 +147,28 @@ async def register(
         pwd_hash=body.pwd_hash,
     )
     db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    try:
+        await db.commit()
+        await db.refresh(user)
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=ErrorResponse(
+                error=ErrorBody(
+                    code="EMAIL_ALREADY_EXISTS",
+                    message="このメールアドレスは既に登録されています",
+                )
+            ).model_dump(),
+        ) from exc
+
+    if auth_result.email_confirmation_required or not auth_result.access_token:
+        return AuthResponse(
+            accessToken=None,
+            requiresEmailConfirmation=True,
+            message=_register_confirmation_message(),
+            user=_user_response(user),
+        )
 
     return AuthResponse(
         accessToken=auth_result.access_token,

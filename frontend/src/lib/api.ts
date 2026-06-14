@@ -38,7 +38,9 @@ export interface AuthUser {
 }
 
 export interface AuthResponse {
-  accessToken: string;
+  accessToken: string | null;
+  requiresEmailConfirmation?: boolean;
+  message?: string | null;
   user: AuthUser;
 }
 

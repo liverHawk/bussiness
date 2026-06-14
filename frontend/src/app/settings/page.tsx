@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React from "react";
+import AuthGuard from "@/components/AuthGuard";
 
 const SETTINGS_ITEMS = [
   { href: "/settings/account",      label: "アカウント設定",     emoji: "👤" },
@@ -14,6 +15,7 @@ export default function SettingsPage(): React.JSX.Element {
   const router = useRouter();
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#f3e4d7]">
       <header className="sticky top-0 z-40 bg-[#f3e4d7] border-b border-[#d4b896]">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-3">
@@ -48,5 +50,6 @@ export default function SettingsPage(): React.JSX.Element {
         </ul>
       </main>
     </div>
+    </AuthGuard>
   );
 }

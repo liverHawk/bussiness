@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from './Header'
+import AuthGuard from '@/components/AuthGuard'
 import LocationInputCard from './LocationInputCard'
 import DestinationList from './DestinationList'
 import TimeSelectorSheet from './TimeSelectorSheet'
@@ -63,6 +64,7 @@ export default function RouteSearchScreen() {
   }
 
   return (
+    <AuthGuard>
     <div className="min-h-screen bg-[#fffbf7] text-gray-800">
       <Header />
 
@@ -111,5 +113,6 @@ export default function RouteSearchScreen() {
         />
       </main>
     </div>
+    </AuthGuard>
   )
 }

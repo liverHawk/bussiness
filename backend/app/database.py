@@ -23,7 +23,11 @@ def _connect_args() -> dict:
         or "pooler.supabase.com" in url
         or "sslmode=require" in url
     ):
-        args["ssl"] = ssl.create_default_context()
+        # Supabase pooler は中間証明書が自己署名のため verify を無効にする
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+        args["ssl"] = ssl_ctx
     # Supabase Pooler は prepared statement 非対応（asyncpg の statement_cache_size のみ有効）
     if "pooler.supabase.com" in url:
         args["statement_cache_size"] = 0

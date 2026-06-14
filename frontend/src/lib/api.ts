@@ -21,6 +21,21 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** 401レスポンス時にトークンを消してログイン画面へ飛ばす */
+function handleUnauthorized(): never {
+  clearAccessToken();
+  if (typeof window !== "undefined") {
+    window.location.replace("/login");
+  }
+  throw new Error("認証が必要です");
+}
+
+async function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(url, init);
+  if (res.status === 401) handleUnauthorized();
+  return res;
+}
+
 // ---- ヘルスチェック ----
 
 export async function fetchHealth(): Promise<{ status: string }> {
@@ -83,7 +98,7 @@ export interface MeResponse {
 }
 
 export async function getMe(): Promise<MeResponse> {
-  const res = await fetch(`${API_URL}/users/me`, {
+  const res = await apiFetch(`${API_URL}/users/me`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("ユーザー情報の取得に失敗しました");
@@ -113,7 +128,7 @@ export async function searchSpots(filters: SpotSearchFilters): Promise<Spot[]> {
   filters.congestion.forEach((v) => params.append("congestion", v));
   filters.genres.forEach((v) => params.append("genre", v));
   filters.reviews.forEach((v) => params.append("review", v));
-  const res = await fetch(`${API_URL}/spots/search?${params}`, {
+  const res = await apiFetch(`${API_URL}/spots/search?${params}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error(`スポット検索に失敗しました (${res.status})`);
@@ -128,7 +143,7 @@ export interface SpotDetail extends Spot {
 }
 
 export async function getSpotDetail(spotId: string): Promise<SpotDetail> {
-  const res = await fetch(`${API_URL}/spots/${spotId}`, {
+  const res = await apiFetch(`${API_URL}/spots/${spotId}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("スポット情報の取得に失敗しました");
@@ -146,7 +161,7 @@ export interface SpotReview {
 }
 
 export async function getSpotReviews(spotId: string): Promise<SpotReview[]> {
-  const res = await fetch(`${API_URL}/spots/${spotId}/reviews`, {
+  const res = await apiFetch(`${API_URL}/spots/${spotId}/reviews`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("レビューの取得に失敗しました");
@@ -163,7 +178,7 @@ export interface GeocodeResult {
 }
 
 export async function geocodeAddress(query: string): Promise<GeocodeResult> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_URL}/spots/geocode?q=${encodeURIComponent(query)}`,
     { headers: authHeaders() }
   );
@@ -207,7 +222,7 @@ export interface RouteGenerateResponse {
 export async function generateRoute(
   body: RouteGenerateRequest
 ): Promise<RouteGenerateResponse> {
-  const res = await fetch(`${API_URL}/routes/generate`, {
+  const res = await apiFetch(`${API_URL}/routes/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
@@ -228,7 +243,7 @@ export interface SavedRoute {
 }
 
 export async function listRoutes(): Promise<SavedRoute[]> {
-  const res = await fetch(`${API_URL}/routes`, { headers: authHeaders() });
+  const res = await apiFetch(`${API_URL}/routes`, { headers: authHeaders() });
   if (!res.ok) throw new Error("保存済みルートの取得に失敗しました");
   const data: { savedRoutes: SavedRoute[] } = await res.json();
   return data.savedRoutes;
@@ -246,7 +261,7 @@ export async function postReview(
   spotId: string,
   body: ReviewPostRequest
 ): Promise<{ reviewId: string; message: string }> {
-  const res = await fetch(`${API_URL}/spots/${spotId}/reviews`, {
+  const res = await apiFetch(`${API_URL}/spots/${spotId}/reviews`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
@@ -270,7 +285,7 @@ export interface ReviewSpot {
 }
 
 export async function listReviewSpots(): Promise<ReviewSpot[]> {
-  const res = await fetch(`${API_URL}/reviews/spots`, {
+  const res = await apiFetch(`${API_URL}/reviews/spots`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("レビュー一覧の取得に失敗しました");
@@ -289,7 +304,7 @@ export type CouponItem = {
 };
 
 export async function fetchMyCoupons(token: string): Promise<CouponItem[]> {
-  const res = await fetch(`${API_URL}/coupons/my-list`, {
+  const res = await apiFetch(`${API_URL}/coupons/my-list`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error("クーポン一覧の取得に失敗しました");
@@ -309,7 +324,7 @@ export interface CoinPurchaseResponse {
 export async function purchaseCoins(
   coinAmount: number
 ): Promise<CoinPurchaseResponse> {
-  const res = await fetch(`${API_URL}/billing/coins/purchase`, {
+  const res = await apiFetch(`${API_URL}/billing/coins/purchase`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

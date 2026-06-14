@@ -79,15 +79,16 @@ async def login(
 
     try:
         user = await ensure_user_record(db, auth_result, pwd_hash=body.pwd_hash)
-    except SQLAlchemyError as exc:
+    except (SQLAlchemyError, OSError) as exc:
         raise HTTPException(
             status_code=503,
             detail=ErrorResponse(
                 error=ErrorBody(
                     code="DATABASE_ERROR",
                     message=(
-                        "データベースエラーが発生しました。"
-                        "DATABASE_URL（Supabase 接続文字列）を確認してください。"
+                        "データベースに接続できません。"
+                        "VPS の backend/.env の DATABASE_URL（Supabase 接続文字列）"
+                        "とネットワーク設定を確認してください。"
                     ),
                 )
             ).model_dump(),

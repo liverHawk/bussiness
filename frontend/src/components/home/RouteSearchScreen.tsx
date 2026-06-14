@@ -8,6 +8,7 @@ import DestinationList, { type DestinationItem } from './DestinationList'
 import TimeSelectorSheet from './TimeSelectorSheet'
 import MapSection from './MapSection'
 import SearchButton from './SearchButton'
+import LocationInputCard from './LocationInputCard'
 import { generateRoute, searchSpots, type Spot } from '@/lib/api'
 
 export type DepartureItem = {

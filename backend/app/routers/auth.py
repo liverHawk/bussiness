@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -15,7 +15,7 @@ from app.services.supabase_auth import (
     SupabaseAuthService,
     get_supabase_auth_service,
 )
-from app.services.user_sync import ensure_user_record
+from app.services.user_sync import ensure_user_record, store_pwd_hash
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -52,6 +52,13 @@ async def login(
                     error=ErrorBody(code=exc.code, message=exc.message)
                 ).model_dump(),
             ) from exc
+        if exc.code == "EMAIL_NOT_CONFIRMED":
+            raise HTTPException(
+                status_code=403,
+                detail=ErrorResponse(
+                    error=ErrorBody(code=exc.code, message=exc.message)
+                ).model_dump(),
+            ) from exc
         raise HTTPException(
             status_code=exc.status_code,
             detail=ErrorResponse(
@@ -70,7 +77,21 @@ async def login(
             ).model_dump(),
         )
 
-    user = await ensure_user_record(db, auth_result, pwd_hash=body.pwd_hash)
+    try:
+        user = await ensure_user_record(db, auth_result, pwd_hash=body.pwd_hash)
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=ErrorResponse(
+                error=ErrorBody(
+                    code="DATABASE_ERROR",
+                    message=(
+                        "データベースエラーが発生しました。"
+                        "DATABASE_URL（Supabase 接続文字列）を確認してください。"
+                    ),
+                )
+            ).model_dump(),
+        ) from exc
 
     return AuthResponse(
         accessToken=auth_result.access_token,
@@ -144,7 +165,7 @@ async def register(
                 type="User",
                 name=body.name,
                 e_mail=body.email,
-                pwd_hash=body.pwd_hash,
+                pwd_hash=store_pwd_hash(body.pwd_hash),
             )
             db.add(user)
             await db.commit()
@@ -163,7 +184,7 @@ async def register(
         type="User",
         name=body.name,
         e_mail=body.email,
-        pwd_hash=body.pwd_hash,
+        pwd_hash=store_pwd_hash(body.pwd_hash),
     )
     db.add(user)
     try:

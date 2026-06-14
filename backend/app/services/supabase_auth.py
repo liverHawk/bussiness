@@ -16,10 +16,11 @@ class SupabaseAuthError(Exception):
 
 @dataclass
 class SupabaseAuthResult:
-    access_token: str
+    access_token: str | None
     user_id: uuid.UUID
     email: str
     name: str
+    email_confirmation_required: bool = False
 
 
 class SupabaseAuthService:
@@ -87,7 +88,67 @@ class SupabaseAuthService:
                     "data": {"name": name},
                 },
             )
-        return self._parse_auth_response(response, email=email, fallback_name=name)
+        return self._parse_signup_response(response, email=email, fallback_name=name)
+
+    def _extract_user_and_token(self, data: dict) -> tuple[dict, str | None]:
+        user = data.get("user")
+        if user is None and data.get("id"):
+            user = data
+        user = user or {}
+        token = data.get("access_token")
+        session = data.get("session")
+        if not token and isinstance(session, dict):
+            token = session.get("access_token")
+        return user, token
+
+    def _parse_signup_response(
+        self,
+        response: httpx.Response,
+        email: str,
+        fallback_name: str = "",
+    ) -> SupabaseAuthResult:
+        if response.status_code == 200:
+            data = response.json()
+            user, token = self._extract_user_and_token(data)
+            metadata = user.get("user_metadata") or {}
+            user_id = user.get("id")
+            if not user_id:
+                raise SupabaseAuthError(
+                    "AUTH_ERROR",
+                    "認証処理に失敗しました",
+                    500,
+                )
+            if not token:
+                return SupabaseAuthResult(
+                    access_token=None,
+                    user_id=uuid.UUID(user_id),
+                    email=user.get("email") or email,
+                    name=metadata.get("name") or fallback_name,
+                    email_confirmation_required=True,
+                )
+            return SupabaseAuthResult(
+                access_token=token,
+                user_id=uuid.UUID(user_id),
+                email=user.get("email") or email,
+                name=metadata.get("name") or fallback_name,
+            )
+
+        body = response.json() if response.content else {}
+        error_code = body.get("error_code", "")
+        msg = body.get("msg") or body.get("message") or ""
+
+        if error_code == "user_already_exists" or "already registered" in msg.lower():
+            raise SupabaseAuthError(
+                "EMAIL_ALREADY_EXISTS",
+                "このメールアドレスは既に登録されています",
+                409,
+            )
+
+        raise SupabaseAuthError(
+            "AUTH_ERROR",
+            msg or "認証処理に失敗しました",
+            response.status_code if response.status_code >= 400 else 500,
+        )
 
     async def sign_in(self, email: str, password: str) -> SupabaseAuthResult:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -106,17 +167,17 @@ class SupabaseAuthService:
     ) -> SupabaseAuthResult:
         if response.status_code == 200:
             data = response.json()
-            user = data.get("user") or {}
+            user, token = self._extract_user_and_token(data)
             metadata = user.get("user_metadata") or {}
             user_id = user.get("id")
-            if not data.get("access_token") or not user_id:
+            if not token or not user_id:
                 raise SupabaseAuthError(
                     "AUTH_ERROR",
                     "認証処理に失敗しました",
                     500,
                 )
             return SupabaseAuthResult(
-                access_token=data["access_token"],
+                access_token=token,
                 user_id=uuid.UUID(user_id),
                 email=user.get("email") or email,
                 name=metadata.get("name") or fallback_name,
@@ -151,8 +212,18 @@ class SupabaseAuthService:
 
 
 def get_supabase_auth_service() -> SupabaseAuthService:
+    from fastapi import HTTPException
+
+    from app.schemas.errors import ErrorBody, ErrorResponse
+
     if not settings.supabase_url or not settings.supabase_anon_key:
-        raise RuntimeError(
-            "SUPABASE_URL と SUPABASE_ANON_KEY を backend/.env に設定してください"
+        raise HTTPException(
+            status_code=503,
+            detail=ErrorResponse(
+                error=ErrorBody(
+                    code="AUTH_NOT_CONFIGURED",
+                    message="認証サービスが設定されていません（SUPABASE_URL / SUPABASE_ANON_KEY）",
+                )
+            ).model_dump(),
         )
     return SupabaseAuthService(settings.supabase_url, settings.supabase_anon_key)

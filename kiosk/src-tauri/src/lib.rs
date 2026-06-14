@@ -2,6 +2,7 @@ use std::io::Write as IoWrite;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -16,11 +17,12 @@ const ESP32_KEYWORDS: &[&str] = &[
 //   - 全 Wi-Fi チャンネル (1-13ch) を 200ms ずつホッピング
 //   - ISR はリングバッファに MAC を書くだけ（std::map は安全にメインループで操作）
 //   - 30 秒スライディングウィンドウでユニーク MAC を管理
-//   - RSSI フィルタなし（広範囲検知）
+//   - RSSI 閾値フィルタ（シリアルコマンド RSSI:<dBm> でランタイム変更、NVS 永続化）
 const SKETCH: &str = r#"
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "nvs_flash.h"
+#include <Preferences.h>
 #include <map>
 #include <string>
 #include <string.h>
@@ -34,17 +36,34 @@ static uint8_t  mac_buf[MAC_BUF_SIZE][6];
 static volatile int buf_head = 0;
 static volatile int buf_tail = 0;
 static std::map<std::string, unsigned long> mac_table;
+static volatile int8_t rssi_min = -127;
+static Preferences prefs;
 
 void IRAM_ATTR sniffer_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
   if (type != WIFI_PKT_MGMT) return;
   const wifi_promiscuous_pkt_t* pkt = (const wifi_promiscuous_pkt_t*)buf;
   const uint8_t* payload = pkt->payload;
   if ((payload[0] & 0xFC) != 0x40) return;
+  int8_t threshold = rssi_min;
+  if (threshold > (int8_t)-127 && pkt->rx_ctrl.rssi < threshold) return;
   int next = (buf_head + 1) % MAC_BUF_SIZE;
   if (next != buf_tail) {
     memcpy(mac_buf[buf_head], payload + 10, 6);
     buf_head = next;
   }
+}
+
+static bool valid_rssi(int val) {
+  return val == -127 || (val >= -90 && val <= -50);
+}
+
+static void handle_serial_command(const String& line) {
+  if (!line.startsWith("RSSI:")) return;
+  int val = line.substring(5).toInt();
+  if (!valid_rssi(val)) return;
+  rssi_min = (int8_t)val;
+  prefs.putChar("rssi_min", rssi_min);
+  Serial.printf("OK:RSSI:%d\n", (int)rssi_min);
 }
 
 static std::string mac_to_str(const uint8_t* m) {
@@ -57,6 +76,8 @@ static std::string mac_to_str(const uint8_t* m) {
 void setup() {
   Serial.begin(115200);
   nvs_flash_init();
+  prefs.begin("58inomu", false);
+  rssi_min = prefs.getChar("rssi_min", -127);
   esp_netif_init();
   esp_event_loop_create_default();
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -67,11 +88,26 @@ void setup() {
   esp_wifi_set_promiscuous(true);
   esp_wifi_set_promiscuous_rx_cb(&sniffer_cb);
   esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
+  Serial.printf("CFG:RSSI:%d\n", (int)rssi_min);
 }
 
 void loop() {
   static uint8_t  ch = 1;
   static unsigned long last_report = 0;
+  static String serial_line;
+
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (serial_line.length() > 0) {
+        handle_serial_command(serial_line);
+        serial_line = "";
+      }
+    } else {
+      serial_line += c;
+      if (serial_line.length() > 16) serial_line = "";
+    }
+  }
 
   esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
   ch = (ch % MAX_CHANNEL) + 1;
@@ -101,7 +137,91 @@ void loop() {
 struct Esp32State {
     count: Mutex<i32>,
     connected: Mutex<bool>,
-    stop_flag: AtomicBool,   // true にするとシリアル読み取りスレッドが終了
+    stop_flag: AtomicBool, // true にするとシリアル読み取りスレッドが終了
+    command_tx: Mutex<Option<Sender<String>>>,
+    rssi_min: Mutex<i8>,
+}
+
+fn validate_rssi_min(rssi_min: i8) -> Result<(), String> {
+    if rssi_min == -127 || (-90..=-50).contains(&rssi_min) {
+        Ok(())
+    } else {
+        Err(format!(
+            "RSSI threshold must be -127 or between -90 and -50, got {rssi_min}"
+        ))
+    }
+}
+
+fn parse_serial_line(line: &str, esp_state: &Arc<Esp32State>, app: &AppHandle) {
+    let line = line.trim();
+    if line.is_empty() {
+        return;
+    }
+    if let Ok(count) = line.parse::<i32>() {
+        *esp_state.count.lock().unwrap() = count;
+        let _ = app.emit("esp32-count", count);
+    } else if let Some(rest) = line.strip_prefix("OK:RSSI:") {
+        if let Ok(v) = rest.parse::<i8>() {
+            *esp_state.rssi_min.lock().unwrap() = v;
+            let _ = app.emit("esp32-rssi-min", v);
+        }
+    } else if let Some(rest) = line.strip_prefix("CFG:RSSI:") {
+        if let Ok(v) = rest.parse::<i8>() {
+            *esp_state.rssi_min.lock().unwrap() = v;
+            let _ = app.emit("esp32-rssi-min", v);
+        }
+    }
+}
+
+fn run_serial_loop(
+    mut serial: Box<dyn serialport::SerialPort>,
+    esp_state: Arc<Esp32State>,
+    app: AppHandle,
+    command_rx: Receiver<String>,
+) {
+    *esp_state.connected.lock().unwrap() = true;
+    let _ = app.emit("esp32-connected", true);
+
+    // ESP32 起動メッセージ待ち後、保存済み RSSI を同期
+    thread::sleep(Duration::from_millis(500));
+    let rssi = *esp_state.rssi_min.lock().unwrap();
+    let _ = serial.write_all(format!("RSSI:{rssi}\n").as_bytes());
+
+    let mut read_buf = vec![0u8; 128];
+    let mut line_buf = String::new();
+
+    loop {
+        if esp_state.stop_flag.load(Ordering::Relaxed) {
+            break;
+        }
+
+        while let Ok(cmd) = command_rx.try_recv() {
+            let msg = if cmd.starts_with("RSSI:") {
+                format!("{cmd}\n")
+            } else {
+                format!("RSSI:{cmd}\n")
+            };
+            let _ = serial.write_all(msg.as_bytes());
+        }
+
+        match serial.read(&mut read_buf) {
+            Ok(n) if n > 0 => {
+                line_buf.push_str(&String::from_utf8_lossy(&read_buf[..n]));
+                while let Some(pos) = line_buf.find('\n') {
+                    let line = line_buf[..pos].to_string();
+                    line_buf = line_buf[pos + 1..].to_string();
+                    parse_serial_line(&line, &esp_state, &app);
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
+            Err(_) => {
+                *esp_state.connected.lock().unwrap() = false;
+                let _ = app.emit("esp32-connected", false);
+                break;
+            }
+            _ => {}
+        }
+    }
 }
 
 // ── シリアルポート ─────────────────────────────────────────────────────────
@@ -158,46 +278,62 @@ fn get_esp32_connected(state: State<Arc<Esp32State>>) -> bool {
 fn stop_esp32(state: State<Arc<Esp32State>>, app: AppHandle) {
     state.stop_flag.store(true, Ordering::Relaxed);
     *state.connected.lock().unwrap() = false;
+    *state.command_tx.lock().unwrap() = None;
     let _ = app.emit("esp32-connected", false);
 }
 
 #[tauri::command]
-fn start_esp32(port: String, baud: u32, state: State<Arc<Esp32State>>, app: AppHandle) {
-    // 前のスレッドを停止してから起動
-    state.stop_flag.store(false, Ordering::Relaxed);
+fn get_esp32_rssi_min(state: State<Arc<Esp32State>>) -> i8 {
+    *state.rssi_min.lock().unwrap()
+}
+
+#[tauri::command]
+fn set_esp32_rssi_min(rssi_min: i8, state: State<Arc<Esp32State>>) -> Result<(), String> {
+    validate_rssi_min(rssi_min)?;
+    if !*state.connected.lock().unwrap() {
+        return Err("ESP32 が接続されていません".into());
+    }
+    *state.rssi_min.lock().unwrap() = rssi_min;
+    let tx = state.command_tx.lock().unwrap();
+    if let Some(sender) = tx.as_ref() {
+        sender
+            .send(format!("RSSI:{rssi_min}"))
+            .map_err(|e| e.to_string())
+    } else {
+        Err("シリアルチャネルが利用できません".into())
+    }
+}
+
+#[tauri::command]
+fn start_esp32(
+    port: String,
+    baud: u32,
+    rssi_min: Option<i8>,
+    state: State<Arc<Esp32State>>,
+    app: AppHandle,
+) {
+    if let Some(rssi) = rssi_min {
+        if validate_rssi_min(rssi).is_ok() {
+            *state.rssi_min.lock().unwrap() = rssi;
+        }
+    }
+
+    state.stop_flag.store(true, Ordering::Relaxed);
+    *state.connected.lock().unwrap() = false;
+    *state.command_tx.lock().unwrap() = None;
+
     let esp_state = Arc::clone(&state);
+    let (cmd_tx, cmd_rx) = mpsc::channel::<String>();
+    *state.command_tx.lock().unwrap() = Some(cmd_tx);
+    state.stop_flag.store(false, Ordering::Relaxed);
+
     thread::spawn(move || {
+        thread::sleep(Duration::from_millis(300));
         match serialport::new(&port, baud)
             .timeout(Duration::from_millis(1000))
             .open()
         {
-            Ok(mut serial) => {
-                *esp_state.connected.lock().unwrap() = true;
-                let _ = app.emit("esp32-connected", true);
-                let mut buf = vec![0u8; 64];
-                loop {
-                    // stop_flag が立ったらポートを閉じて終了
-                    if esp_state.stop_flag.load(Ordering::Relaxed) {
-                        break;
-                    }
-                    match serial.read(&mut buf) {
-                        Ok(n) if n > 0 => {
-                            let line = String::from_utf8_lossy(&buf[..n]).trim().to_string();
-                            if let Ok(count) = line.parse::<i32>() {
-                                *esp_state.count.lock().unwrap() = count;
-                                let _ = app.emit("esp32-count", count);
-                            }
-                        }
-                        Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
-                        Err(_) => {
-                            *esp_state.connected.lock().unwrap() = false;
-                            let _ = app.emit("esp32-connected", false);
-                            break;
-                        }
-                        _ => {}
-                    }
-                }
-            }
+            Ok(serial) => run_serial_loop(serial, esp_state, app, cmd_rx),
             Err(_) => {
                 *esp_state.connected.lock().unwrap() = false;
                 let _ = app.emit("esp32-connected", false);
@@ -296,6 +432,7 @@ fn flash_esp32(port: String, state: State<Arc<Esp32State>>, app: AppHandle) {
     // シリアルスレッドを停止してポートを解放
     state.stop_flag.store(true, Ordering::Relaxed);
     *state.connected.lock().unwrap() = false;
+    *state.command_tx.lock().unwrap() = None;
     let _ = app.emit("esp32-connected", false);
 
     let esp_state = Arc::clone(&state);
@@ -361,6 +498,8 @@ pub fn run() {
         count: Mutex::new(0),
         connected: Mutex::new(false),
         stop_flag: AtomicBool::new(false),
+        command_tx: Mutex::new(None),
+        rssi_min: Mutex::new(-127),
     });
 
     tauri::Builder::default()
@@ -371,6 +510,8 @@ pub fn run() {
             detect_esp32_port,
             get_esp32_count,
             get_esp32_connected,
+            get_esp32_rssi_min,
+            set_esp32_rssi_min,
             stop_esp32,
             start_esp32,
             check_arduino_cli,

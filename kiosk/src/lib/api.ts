@@ -1,26 +1,51 @@
 import { supabase } from "./supabase";
 
+const AUTH_PWD_PLACEHOLDER = "0".repeat(64);
+
+/** Supabase Auth ユーザーに対応する public.users 行を確保（stores.owner FK 用） */
+async function ensurePublicUser(userId: string, name: string, email: string): Promise<void> {
+  const { data: existing, error: selectError } = await supabase
+    .from("users")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (selectError) throw new Error(selectError.message);
+  if (existing) return;
+
+  const { error } = await supabase.from("users").insert({
+    user_id: userId,
+    type: "Store",
+    name: name.slice(0, 50),
+    e_mail: email,
+    pwd_hash: AUTH_PWD_PLACEHOLDER,
+  });
+  if (error) throw new Error(error.message);
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────
 
 export async function login(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw new Error(error.message);
+  const user = data.user!;
+  const name = (user.user_metadata?.name as string) ?? email;
+  await ensurePublicUser(user.id, name, email);
   return {
     accessToken: data.session!.access_token,
-    user: {
-      id: data.user!.id,
-      name: (data.user!.user_metadata?.name as string) ?? email,
-    },
+    user: { id: user.id, name },
   };
 }
 
 export async function register(email: string, password: string, name: string) {
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { name } },
   });
   if (error) throw new Error(error.message);
+  if (data.user) {
+    await ensurePublicUser(data.user.id, name, email);
+  }
 }
 
 export async function logout() {
@@ -58,6 +83,12 @@ export async function getAllStores() {
 export async function createStore(payload: {
   name: string; address: string; lat: number; lon: number; capacity: number; owner: string;
 }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user && user.id === payload.owner && user.email) {
+    const name = (user.user_metadata?.name as string) ?? user.email;
+    await ensurePublicUser(user.id, name, user.email);
+  }
+
   const { data, error } = await supabase
     .from("stores")
     .insert({ ...payload, description: "" })

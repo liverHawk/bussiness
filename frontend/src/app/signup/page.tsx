@@ -12,13 +12,22 @@ export default function SignupPage(): React.JSX.Element {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setLoading(true);
     try {
       const res = await register(email, password, name);
+      if (res.requiresEmailConfirmation || !res.accessToken) {
+        setInfo(
+          res.message ??
+            "確認メールを送信しました。メール内のリンクをクリック後、ログインしてください。"
+        );
+        return;
+      }
       saveAccessToken(res.accessToken);
       localStorage.setItem("currentUser", JSON.stringify(res.user));
       router.push("/");
@@ -80,6 +89,9 @@ export default function SignupPage(): React.JSX.Element {
 
           {error && (
             <p className="text-sm text-red-500">{error}</p>
+          )}
+          {info && (
+            <p className="text-sm text-emerald-600">{info}</p>
           )}
 
           <button

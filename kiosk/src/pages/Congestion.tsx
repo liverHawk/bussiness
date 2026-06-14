@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useAuth } from "../store/auth";
@@ -6,6 +6,33 @@ import { updateCongestion } from "../lib/api";
 
 // 補正係数のデフォルト（iOSランダムMAC研究値ベース: 日本のシェアで加重平均 ≈ 4.3）
 const DEFAULT_FACTOR = 4.3;
+const RSSI_RANGE_KEY = "kiosk_rssi_range";
+const DEFAULT_RANGE = 100;
+
+function rangeToRssi(range: number): number {
+  if (range >= 100) return -127;
+  return Math.round(-50 - (range / 100) * 40);
+}
+
+function rssiToRange(rssi: number): number {
+  if (rssi <= -127) return 100;
+  if (rssi >= -50) return 0;
+  return Math.round(((-50 - rssi) / 40) * 100);
+}
+
+function rangeLabel(range: number): string {
+  if (range >= 100) return "広い（フィルタなし）";
+  if (range <= 25) return "狭い";
+  if (range <= 75) return "標準";
+  return "やや広い";
+}
+
+function loadSavedRange(): number {
+  const saved = localStorage.getItem(RSSI_RANGE_KEY);
+  if (saved === null) return DEFAULT_RANGE;
+  const parsed = parseFloat(saved);
+  return Number.isFinite(parsed) ? Math.min(100, Math.max(0, parsed)) : DEFAULT_RANGE;
+}
 
 export default function Congestion() {
   const { storeId } = useAuth();
@@ -20,19 +47,51 @@ export default function Congestion() {
   const [arduinoProgress, setArduinoProgress] = useState("");
   const [arduinoReady, setArduinoReady] = useState(false);
   const [flashing, setFlashing] = useState(false);
+  const [detectionRange, setDetectionRange] = useState(loadSavedRange);
+  const [rssiMin, setRssiMin] = useState(rangeToRssi(loadSavedRange()));
+  const [rssiPending, setRssiPending] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detectionRangeRef = useRef(detectionRange);
+  useEffect(() => {
+    detectionRangeRef.current = detectionRange;
+  }, [detectionRange]);
 
   // 補正後の推定人数
   const count = Math.round(rawCount / factor);
   const rate = capacity > 0 ? Math.min(count / capacity, 1) : 0;
+  const rssiDisplay = rssiMin <= -127 ? "フィルタなし" : `${rssiMin} dBm`;
+
+  const applyRssiToEsp32 = useCallback(async (range: number) => {
+    const nextRssi = rangeToRssi(range);
+    setRssiMin(nextRssi);
+    localStorage.setItem(RSSI_RANGE_KEY, String(range));
+    if (!esp32Connected) return;
+    setRssiPending(true);
+    try {
+      await invoke("set_esp32_rssi_min", { rssiMin: nextRssi });
+    } catch (e) {
+      setMessage(typeof e === "string" ? e : "RSSI 設定の送信に失敗しました");
+    } finally {
+      setRssiPending(false);
+    }
+  }, [esp32Connected]);
 
   useEffect(() => {
     invoke<string[]>("get_serial_ports").then(setPorts);
     invoke<boolean>("get_esp32_connected").then(setEsp32Connected);
     invoke<number>("get_esp32_count").then(setRawCount);
     invoke<boolean>("check_arduino_cli").then(setArduinoReady);
+    invoke<number>("get_esp32_rssi_min").then((v) => {
+      setRssiMin(v);
+      setDetectionRange(rssiToRange(v));
+    });
 
     const u1 = listen<number>("esp32-count", (e) => setRawCount(e.payload));
     const u2 = listen<boolean>("esp32-connected", (e) => setEsp32Connected(e.payload));
+    const u5 = listen<number>("esp32-rssi-min", (e) => {
+      setRssiMin(e.payload);
+      setDetectionRange(rssiToRange(e.payload));
+    });
     const u3 = listen<string>("arduino-progress", (e) => {
       const msg = e.payload;
       setArduinoProgress(msg);
@@ -41,7 +100,11 @@ export default function Congestion() {
     });
     // 書き込み完了後の自動再接続
     const u4 = listen<string>("esp32-reconnect", (e) => {
-      invoke("start_esp32", { port: e.payload, baud: 115200 });
+      invoke("start_esp32", {
+        port: e.payload,
+        baud: 115200,
+        rssiMin: rangeToRssi(detectionRangeRef.current),
+      });
     });
 
     const interval = setInterval(() => syncServer(), 10000);
@@ -49,11 +112,22 @@ export default function Congestion() {
     return () => {
       u1.then((f) => f());
       u2.then((f) => f());
+      u5.then((f) => f());
       u3.then((f) => f());
       u4.then((f) => f());
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void applyRssiToEsp32(detectionRange);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [detectionRange, applyRssiToEsp32]);
 
   const detectPort = async () => {
     const port = await invoke<string | null>("detect_esp32_port");
@@ -67,7 +141,12 @@ export default function Congestion() {
     }
   };
 
-  const startEsp32 = () => invoke("start_esp32", { port: selectedPort, baud: 115200 });
+  const startEsp32 = () =>
+    invoke("start_esp32", {
+      port: selectedPort,
+      baud: 115200,
+      rssiMin: rangeToRssi(detectionRange),
+    });
   const stopEsp32  = () => invoke("stop_esp32");
 
   const setupArduino = () => {
@@ -144,6 +223,38 @@ export default function Congestion() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* 検知範囲（RSSI） */}
+      <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm text-gray-500 font-medium">検知範囲（電波強度）</p>
+          <div className="text-right">
+            <span className="text-sm font-bold text-indigo-600">{rssiDisplay}</span>
+            <span className="text-xs text-gray-400 ml-2">{rangeLabel(detectionRange)}</span>
+            {rssiPending && <span className="text-xs text-gray-300 ml-2">送信中…</span>}
+          </div>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={detectionRange}
+          onChange={(e) => setDetectionRange(parseInt(e.target.value, 10))}
+          disabled={!esp32Connected}
+          className={`w-full accent-indigo-600 ${!esp32Connected ? "opacity-50 cursor-not-allowed" : ""}`}
+        />
+        <div className="flex justify-between text-xs text-gray-300 mt-1">
+          <span>狭い（-50 dBm）</span>
+          <span className="text-gray-400">標準 ≈ -70 dBm</span>
+          <span>広い（フィルタなし）</span>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          {esp32Connected
+            ? "左に動かすほど強い電波のみを検知し、店内に限定しやすくなります。壁・人混み・アンテナ位置で変わるため、実人数と照合して調整してください。"
+            : "ESP32 接続後に調整できます。初回はスケッチ書き込みが必要です。"}
+        </p>
       </div>
 
       {/* 補正係数 */}

@@ -228,6 +228,8 @@ body {
     margin-top: calc(20px + var(--safe-top));
     margin-bottom: calc(20px + var(--safe-bottom));
   }
+<<<<<<< HEAD
+=======
 }
 
 /* user icon image styling */
@@ -238,4 +240,5 @@ body {
   border-radius: 50%;
   object-fit: cover;
   display: block;
+>>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
 }

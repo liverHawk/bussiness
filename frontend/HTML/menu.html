@@ -56,7 +56,28 @@
             display: flex;
             flex-direction: column;
             z-index: 1000;
+            overflow: hidden;
+            /* ← 全体はスクロールしない */
+        }
+
+        .drawer nav {
+            flex: 1;
+            min-height: 0;
+            /* ← スクロール跳ね返り防止 */
+            overflow: hidden;
+        }
+
+        .menu-list {
+            list-style: none;
+            padding: 0;
+            margin: 16px 0 0;
+            display: grid;
+            gap: 16px;
+            flex: 1;
+            min-height: 0;
+            /* ← これがないとログアウトが見切れる */
             overflow-y: auto;
+            /* ← メニューだけスクロール */
         }
 
         .preview-frame {
@@ -79,14 +100,6 @@
             font-size: 22px;
             cursor: pointer;
             margin-bottom: 12px;
-        }
-
-        .menu-list {
-            list-style: none;
-            padding: 0;
-            margin: 16px 0 0;
-            display: grid;
-            gap: 16px;
         }
 
         .menu-item {
@@ -116,11 +129,59 @@
             font-size: 20px;
         }
 
-        .separator {
-            height: 1px;
-            background: #e2d8d0;
-            margin: 18px 0;
+        /* Toggle button for submenu */
+        .menu-item-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 16px;
             border: none;
+            background: #f7f3f0;
+            color: #2b2b2b;
+            font-size: 16px;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.15s ease;
+        }
+
+        .menu-item-toggle:hover,
+        .menu-item-toggle:focus-visible {
+            background: #fff2dd;
+            transform: translateX(2px);
+        }
+
+        .submenu-list {
+            list-style: none;
+            padding: 0;
+            margin: 8px 0 0 40px;
+            display: none;
+            gap: 10px;
+        }
+
+        .submenu-list.show {
+            display: grid;
+        }
+
+        .submenu-item {
+            display: block;
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: none;
+            background: #faf6f2;
+            color: #2b2b2b;
+            text-align: left;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.15s ease;
+        }
+
+        .submenu-item:hover,
+        .submenu-item:focus-visible {
+            background: #fff2dd;
+            transform: translateX(1px);
         }
 
         .fallback-text {
@@ -142,19 +203,34 @@
         <iframe id="previewFrame" class="preview-frame" src="" title="元の画面"></iframe>
         <div class="fallback-text" id="fallbackText">元の画面を読み込み中です...</div>
     </div>
+
     <div class="drawer">
-        <button class="close-btn" onclick="window.history.back()" aria-label="閉じる">✕</button>
+        <button class="close-btn" type="button" aria-label="閉じる">✕</button>
+
         <nav>
             <ul class="menu-list">
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">🏠</span>ホーム</a></li>
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">🔖</span>セーブ</a></li>
-                <li><a class="menu-item" href="#"><span class="menu-item-icon">🪙</span>〇〇コイン</a></li>
+
+                <li>
+                    <button class="menu-item-toggle" type="button" id="coinToggle" aria-expanded="false"
+                        aria-controls="coinSubmenu">
+                        <span class="menu-item-icon">🪙</span>めぐコイン
+                    </button>
+                    <ul class="submenu-list" id="coinSubmenu" role="menu">
+                        <li><button class="submenu-item" type="button">決済</button></li>
+                        <li><button class="submenu-item" type="button">チャージ</button></li>
+                        <li><button class="submenu-item" type="button">マイクーポン</button></li>
+                    </ul>
+                </li>
+
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">💬</span>レビュー・フォト</a></li>
                 <li><a class="menu-item" href="HTML/CSS/setting.html"><span class="menu-item-icon">⚙️</span>設定</a></li>
                 <li><a class="menu-item" href="#"><span class="menu-item-icon">↩️</span>ログアウト</a></li>
             </ul>
         </nav>
     </div>
+
     <script>
         const params = new URLSearchParams(window.location.search);
         const src = params.get('src');
@@ -163,11 +239,31 @@
 
         if (src) {
             frame.src = src;
-            frame.onload = () => {
-                fallback.style.display = 'none';
-            };
+            frame.onload = () => fallback.style.display = 'none';
         } else {
             fallback.textContent = '元の画面情報がありません。メニューアイコンから開いてください。';
+        }
+
+        /* ×ボタンでメニューを閉じる */
+        const closeButton = document.querySelector('.close-btn');
+        const drawer = document.querySelector('.drawer');
+
+        if (closeButton && drawer) {
+            closeButton.addEventListener('click', () => {
+                drawer.style.display = 'none';
+            });
+        }
+
+        /* めぐコインのサブメニュー */
+        const toggleButton = document.getElementById('coinToggle');
+        const submenu = document.getElementById('coinSubmenu');
+
+        if (toggleButton && submenu) {
+            toggleButton.addEventListener('click', () => {
+                const expanded = toggleButton.getAttribute('aria-expanded') === 'true';
+                toggleButton.setAttribute('aria-expanded', String(!expanded));
+                submenu.classList.toggle('show');
+            });
         }
     </script>
 </body>

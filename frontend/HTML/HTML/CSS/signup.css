@@ -32,6 +32,8 @@ body {
     font-size: 26px;
 }
 
+<<<<<<< HEAD
+=======
 .user-icon-img,
 .user-icon img {
     width: 28px;
@@ -41,6 +43,7 @@ body {
     display: block;
 }
 
+>>>>>>> 6283ed7c5b2501325286abffdb6e97b80ff1d33a
 /* カード */
 .container {
     max-width: 380px;

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Header from './Header'
 import AuthGuard from '@/components/AuthGuard'
 import LocationInputCard from './LocationInputCard'
-import DestinationList from './DestinationList'
+import DestinationList, { type DestinationItem } from './DestinationList'
 import TimeSelectorSheet from './TimeSelectorSheet'
 import MapSection from './MapSection'
 import SearchButton from './SearchButton'
@@ -13,13 +13,13 @@ import { geocodeAddress, generateRoute } from '@/lib/api'
 
 export type SearchFormState = {
   departure: string
-  destinations: string[]
+  destinations: DestinationItem[]
   endTime: string
 }
 
 const defaultState: SearchFormState = {
   departure: '',
-  destinations: [''],
+  destinations: [{ address: '', genres: [] }],
   endTime: new Date().toTimeString().slice(0, 5),
 }
 
@@ -31,7 +31,7 @@ export default function RouteSearchScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const setDeparture = (value: string) => setForm((s: SearchFormState) => ({ ...s, departure: value }))
-  const setDestinations = (destinations: string[]) => setForm((s: SearchFormState) => ({ ...s, destinations }))
+  const setDestinations = (destinations: DestinationItem[]) => setForm((s: SearchFormState) => ({ ...s, destinations }))
   const setEndTime = (endTime: string) => setForm((s: SearchFormState) => ({ ...s, endTime }))
 
   const handleSearch = async () => {
@@ -41,16 +41,20 @@ export default function RouteSearchScreen() {
       const today = new Date().toISOString().slice(0, 10)
       const specifiedDateTime = new Date(`${today}T${form.endTime}:00`).toISOString()
 
+      const filledDests = form.destinations.filter((d) => d.address.trim() !== '')
+
       const [startGeo, ...destGeos] = await Promise.all([
         geocodeAddress(form.departure || '大阪駅'),
-        ...form.destinations
-          .filter((d) => d.trim() !== '')
-          .map((d) => geocodeAddress(d)),
+        ...filledDests.map((d) => geocodeAddress(d.address)),
       ])
 
       const result = await generateRoute({
         startLocation: { latitude: startGeo.latitude, longitude: startGeo.longitude },
-        destinations: destGeos.map((g) => ({ latitude: g.latitude, longitude: g.longitude })),
+        destinations: destGeos.map((g, i) => ({
+          latitude: g.latitude,
+          longitude: g.longitude,
+          preferredGenres: filledDests[i].genres,
+        })),
         specifiedDateTime,
         timeType: 'departure',
       })

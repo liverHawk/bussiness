@@ -193,9 +193,15 @@ export interface RouteLocation {
   longitude: number;
 }
 
+export interface RouteDestination {
+  latitude: number;
+  longitude: number;
+  preferredGenres: string[];
+}
+
 export interface RouteGenerateRequest {
   startLocation: RouteLocation;
-  destinations: RouteLocation[];
+  destinations: RouteDestination[];
   specifiedDateTime: string; // ISO 8601
   timeType: "departure" | "arrival";
 }

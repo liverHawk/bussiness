@@ -41,7 +41,7 @@ export default function MenuDrawer({ open, onClose }: Props) {
 
       {/* Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#f3e4d7] shadow-2xl transition-transform duration-300 ${
+        className={`fixed inset-y-0 left-0 z-[9999] w-72 bg-[#f3e4d7] shadow-2xl transition-transform duration-300 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

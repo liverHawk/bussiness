@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { purchaseCoins, getMe } from "@/lib/api";
 import AuthGuard from "@/components/AuthGuard";
+import MenuDrawer from "@/components/home/MenuDrawer";
 
 interface CoinPlan {
   coinAmount: number;
@@ -17,8 +18,9 @@ const COIN_PLANS: CoinPlan[] = [
 ];
 
 export default function BuyMeguCoinsPage(): React.JSX.Element {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [processing, setProcessing] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [stripeUnavailable, setStripeUnavailable] = useState(false);
   const [userName, setUserName] = useState("—");
   const [coins, setCoins] = useState(0);
 
@@ -43,12 +45,12 @@ export default function BuyMeguCoinsPage(): React.JSX.Element {
 
   const handlePurchase = async (plan: CoinPlan): Promise<void> => {
     setProcessing(plan.coinAmount);
-    setError(null);
+    setStripeUnavailable(false);
     try {
       const res = await purchaseCoins(plan.coinAmount);
       window.location.href = res.stripeCheckoutUrl;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "購入手続きに失敗しました");
+    } catch {
+      setStripeUnavailable(true);
     } finally {
       setProcessing(null);
     }
@@ -58,9 +60,8 @@ export default function BuyMeguCoinsPage(): React.JSX.Element {
     <AuthGuard>
       <div className="min-h-screen bg-[#faf6ef]">
         <header className="sticky top-0 z-40 bg-[#f1ece3]">
-          <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
-            <button className="text-2xl text-gray-700" aria-label="Menu">☰</button>
-            <button className="text-2xl text-gray-700" aria-label="Account">👤</button>
+          <div className="max-w-md mx-auto px-4 py-3 flex items-center">
+            <button onClick={() => setMenuOpen(true)} className="text-2xl text-gray-700" aria-label="メニュー">☰</button>
           </div>
         </header>
 
@@ -77,10 +78,10 @@ export default function BuyMeguCoinsPage(): React.JSX.Element {
 
           <h1 className="text-center text-xl font-bold text-gray-900 mt-10 mb-8">コイン購入</h1>
 
-          {error && (
-            <p className="text-sm text-red-500 text-center mb-4 bg-red-50 rounded-xl py-3 px-4">
-              {error}
-            </p>
+          {stripeUnavailable && (
+            <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-700 text-center">
+              現在コイン購入はご利用いただけません。
+            </div>
           )}
 
           <ul className="space-y-6">
@@ -104,6 +105,8 @@ export default function BuyMeguCoinsPage(): React.JSX.Element {
             Stripe Checkout で安全に決済されます。完了後、コインが自動付与されます。
           </p>
         </main>
+
+        <MenuDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       </div>
     </AuthGuard>
   );

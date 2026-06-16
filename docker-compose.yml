@@ -30,6 +30,7 @@ services:
       - ./frontend/.env.local
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+      command: npm run dev
     depends_on:
       - backend
 

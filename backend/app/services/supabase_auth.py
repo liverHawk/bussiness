@@ -37,14 +37,21 @@ class SupabaseAuthService:
 
     async def get_user(self, access_token: str) -> SupabaseAuthResult:
         """ユーザーのアクセストークンを検証し、ユーザー情報を返す。"""
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                f"{self._base_url}/auth/v1/user",
-                headers={
-                    "apikey": self._anon_key,
-                    "Authorization": f"Bearer {access_token}",
-                },
-            )
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{self._base_url}/auth/v1/user",
+                    headers={
+                        "apikey": self._anon_key,
+                        "Authorization": f"Bearer {access_token}",
+                    },
+                )
+        except httpx.RequestError as exc:
+            raise SupabaseAuthError(
+                "AUTH_UNAVAILABLE",
+                "認証サーバーに接続できません。SUPABASE_URL を確認してください。",
+                503,
+            ) from exc
 
         if response.status_code == 200:
             data = response.json()
@@ -63,14 +70,22 @@ class SupabaseAuthService:
 
     async def sign_out(self, access_token: str) -> None:
         """ユーザーのアクセストークンを無効化（ログアウト）する。"""
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{self._base_url}/auth/v1/logout",
-                headers={
-                    "apikey": self._anon_key,
-                    "Authorization": f"Bearer {access_token}",
-                },
-            )
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self._base_url}/auth/v1/logout",
+                    headers={
+                        "apikey": self._anon_key,
+                        "Authorization": f"Bearer {access_token}",
+                    },
+                )
+        except httpx.RequestError as exc:
+            raise SupabaseAuthError(
+                "AUTH_UNAVAILABLE",
+                "認証サーバーに接続できません。SUPABASE_URL を確認してください。",
+                503,
+            ) from exc
+
         # 204 No Content が正常。401 でも「既に無効」とみなし黙殺する。
         if response.status_code not in (200, 204, 401):
             raise SupabaseAuthError(
@@ -78,16 +93,24 @@ class SupabaseAuthService:
             )
 
     async def sign_up(self, email: str, password: str, name: str) -> SupabaseAuthResult:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{self._base_url}/auth/v1/signup",
-                headers=self._headers,
-                json={
-                    "email": email,
-                    "password": password,
-                    "data": {"name": name},
-                },
-            )
+        try:
+            print(f"{self._base_url}/auth/v1/logout")
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self._base_url}/auth/v1/signup",
+                    headers=self._headers,
+                    json={
+                        "email": email,
+                        "password": password,
+                        "data": {"name": name},
+                    },
+                )
+        except httpx.RequestError as exc:
+            raise SupabaseAuthError(
+                "AUTH_UNAVAILABLE",
+                "認証サーバーに接続できません。SUPABASE_URL を確認してください。",
+                503,
+            ) from exc
         return self._parse_signup_response(response, email=email, fallback_name=name)
 
     def _extract_user_and_token(self, data: dict) -> tuple[dict, str | None]:
@@ -261,10 +284,7 @@ class SupabaseAuthService:
                 401,
             )
 
-        if (
-            error_code == "email_not_confirmed"
-            or "email not confirmed" in msg.lower()
-        ):
+        if error_code == "email_not_confirmed" or "email not confirmed" in msg.lower():
             raise SupabaseAuthError(
                 "EMAIL_NOT_CONFIRMED",
                 "メールアドレスの確認が完了していません。確認メールのリンクをクリックしてください",

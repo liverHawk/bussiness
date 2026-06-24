@@ -1,11 +1,10 @@
-FROM python:3.12-slim
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 WORKDIR /app
-
-RUN pip install uv
+ENV PATH=/root/.local/bin:$PATH
 
 COPY pyproject.toml .
-RUN uv sync --frozen 2>/dev/null || uv sync
+RUN uv sync
 
 COPY . .
 
